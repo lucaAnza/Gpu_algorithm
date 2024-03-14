@@ -24,7 +24,7 @@ __global__ void init_to_zero(int *Arr , int n ){
 int main(){
 	
 
-	int n = 2048;          // n = 1024  , n = 8000
+	int n = 1024;          // n = 1024  , n = 8000
 	int *GpuArr;
 	int CpuArr[n];
 	cudaMalloc(&GpuArr , sizeof(int) * n);
