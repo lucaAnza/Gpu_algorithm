@@ -23,6 +23,9 @@ Viene instanziato solamente un **blocco** , ma vengono utilizzati **thread.x** ,
 Programma che mostra la creazione di una **grid** avente numerosi **blocchi** al suo interno.
 Utilizzo di `gridDim.x , gridDim.y , ...` e `blockDim.x , blockDim.y , ...`.
 
+### class_example.cpp
+
+Programma c++ che mostra le funzioni base di una classe.
 
 
 
