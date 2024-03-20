@@ -1,5 +1,5 @@
 void Frame::ComputeStereoMatches()
-{
+{   
     mvuRight = vector<float>(N,-1.0f);
     mvDepth = vector<float>(N,-1.0f);
 
@@ -16,7 +16,7 @@ void Frame::ComputeStereoMatches()
     const int Nr = mvKeysRight.size();  // Numero punti chiave dell'immagine destra
 
 
-    // Per ogni punto chiave dell'immagine a DESTRA si prende un raggio e si aggiungono tutti i punti a "VRowIndices"
+    // Per ogni punto chiave dell'immagine a DESTRA si prende un raggio e si aggiungono tutti gli indici dei punti a "VRowIndices"
     for(int iR=0; iR<Nr; iR++)
     {
         const cv::KeyPoint &kp = mvKeysRight[iR];
@@ -34,20 +34,21 @@ void Frame::ComputeStereoMatches()
     const float minD = 0;
     const float maxD = mbf/minZ;
 
-    // For each left keypoint search a match in the right image
+    // For each left keypoint search a match in the right image  -> I candidati possibili sono nel vettore "vRowIndices -> vCandidates"
     vector<pair<int, int> > vDistIdx;
     vDistIdx.reserve(N);
 
-    for(int iL=0; iL<N; iL++)
+    
+    for(int iL=0; iL<N; iL++)          // Iterazione dei punti chiave SX
     {
         const cv::KeyPoint &kpL = mvKeys[iL];
         const int &levelL = kpL.octave;
         const float &vL = kpL.pt.y;
         const float &uL = kpL.pt.x;
 
-        const vector<size_t> &vCandidates = vRowIndices[vL];
+        const vector<size_t> &vCandidates = vRowIndices[vL];   // Init dei candidati (i candidati sono i punti destra che sono in un intorno di quelli a sx)
 
-        if(vCandidates.empty())
+        if(vCandidates.empty())     // Caso in cui in cui nell'immagine a destra ci sono zero punti chiave.
             continue;
 
         const float minU = uL-maxD;
@@ -59,23 +60,23 @@ void Frame::ComputeStereoMatches()
         int bestDist = ORBmatcher::TH_HIGH;
         size_t bestIdxR = 0;
 
-        const cv::Mat &dL = mDescriptors.row(iL);
+        const cv::Mat &dL = mDescriptors.row(iL); // dL -> descriptor left assume il valore della riga iL
 
         // Compare descriptor to right keypoints
-        for(size_t iC=0; iC<vCandidates.size(); iC++)
+        for(size_t iC=0; iC<vCandidates.size(); iC++)           // Iterazione dei punti chiave a DX (Candidati)
         {
-            const size_t iR = vCandidates[iC];
-            const cv::KeyPoint &kpR = mvKeysRight[iR];
+            const size_t iR = vCandidates[iC];     // iR assume l'indice di ogni candidato
+            const cv::KeyPoint &kpR = mvKeysRight[iR];   // kpR assume il valore del punto corrispondente al candidato
 
-            if(kpR.octave<levelL-1 || kpR.octave>levelL+1)
+            if(kpR.octave<levelL-1 || kpR.octave>levelL+1)  // kpR.octave rappresenta il livello piramidale (scala) del punto a DX, levelL di quello a SX
                 continue;
 
-            const float &uR = kpR.pt.x;
+            const float &uR = kpR.pt.x;  // coordinata x del punto candidato che stiamo analizzando
 
-            if(uR>=minU && uR<=maxU)
+            if(uR>=minU && uR<=maxU)    // Controllo se la y del keypointCandidatoDX sta in un range
             {
-                const cv::Mat &dR = mDescriptorsRight.row(iR);
-                const int dist = ORBmatcher::DescriptorDistance(dL,dR);
+                const cv::Mat &dR = mDescriptorsRight.row(iR);  
+                const int dist = ORBmatcher::DescriptorDistance(dL,dR);   // restituisce la distanza tra riga DX e SX (DA APPROFONDIRE)
 
                 if(dist<bestDist)
                 {
@@ -86,7 +87,7 @@ void Frame::ComputeStereoMatches()
         }
 
         // Subpixel match by correlation
-        if(bestDist<thOrbDist)
+        if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
         {
             // coordinates in image pyramid at keypoint scale
             const float uR0 = mvKeysRight[bestIdxR].pt.x;
