@@ -27,9 +27,16 @@ Programma c++ che mostra le funzioni base di una classe.
 
 You are given a 1024x1024 integer matrix M.
 Each row is assigned to a thread block.
-Each thread is assigned a matrix element M[i][j].
-It changes M[i][j] to M[i][j] + M[i][j+1] (Exploit shared memory)
+Each thread is assigned a matrix element `M[i][j]`.
+It changes `M[i][j] to M[i][j] + M[i][j+1]` (Exploit shared memory)
+
+
+
+
+
 
 # How to compile ?
 
 `nvcc <fileCuda.cu>`
+
+
