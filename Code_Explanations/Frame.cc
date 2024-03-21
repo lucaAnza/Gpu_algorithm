@@ -8,10 +8,10 @@ void Frame::ComputeStereoMatches()
     const int nRows = mpORBextractorLeft->mvImagePyramid[0].rows;   // myImagePyramid è una lista di immagini a risoluzione sempre più basse  L[0] è l'immagine con qualità maggiore.
 
     //Assign keypoints to row table
-    vector<vector<size_t> > vRowIndices(nRows,vector<size_t>());   // Crea una matrice, e per ogni riga salva l'indice del punto chiave
+    vector<vector<size_t> > vRowIndices(nRows,vector<size_t>());   // Crea una matrice con nRows vettori 
 
     for(int i=0; i<nRows; i++)
-        vRowIndices[i].reserve(200);   // Si prevedono fino a 200 punti chiave per ogni riga
+        vRowIndices[i].reserve(200);   // Si prevedono almeno 200 punti chiave per ogni riga dell'immagine LEFT
 
     const int Nr = mvKeysRight.size();  // Numero punti chiave dell'immagine destra
 
@@ -20,6 +20,7 @@ void Frame::ComputeStereoMatches()
     for(int iR=0; iR<Nr; iR++)
     {
         const cv::KeyPoint &kp = mvKeysRight[iR];
+
         const float &kpY = kp.pt.y;
         const float r = 2.0f*mvScaleFactors[mvKeysRight[iR].octave];
         const int maxr = ceil(kpY+r);
@@ -27,7 +28,9 @@ void Frame::ComputeStereoMatches()
 
         for(int yi=minr;yi<=maxr;yi++)
             vRowIndices[yi].push_back(iR);
+        
     }
+
 
     // Set limits for search
     const float minZ = mb;
@@ -48,7 +51,7 @@ void Frame::ComputeStereoMatches()
 
         const vector<size_t> &vCandidates = vRowIndices[vL];   // Init dei candidati (i candidati sono i punti destra che sono in un intorno di quelli a sx)
 
-        if(vCandidates.empty())     // Caso in cui in cui nell'immagine a destra ci sono zero punti chiave.
+        if(vCandidates.empty())     // Caso in cui in cui nell'immagine a destra ci sono zero punti chiave candidati.
             continue;
 
         const float minU = uL-maxD;
@@ -73,7 +76,7 @@ void Frame::ComputeStereoMatches()
 
             const float &uR = kpR.pt.x;  // coordinata x del punto candidato che stiamo analizzando
 
-            if(uR>=minU && uR<=maxU)    // Controllo se la y del keypointCandidatoDX sta in un range
+            if(uR>=minU && uR<=maxU)    // Controllo se la x del keypointCandidatoDX sta in un range
             {
                 const cv::Mat &dR = mDescriptorsRight.row(iR);  
                 const int dist = ORBmatcher::DescriptorDistance(dL,dR);   // restituisce la distanza tra riga DX e SX (DA APPROFONDIRE)
@@ -90,32 +93,35 @@ void Frame::ComputeStereoMatches()
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
         {
             // coordinates in image pyramid at keypoint scale
-            const float uR0 = mvKeysRight[bestIdxR].pt.x;
-            const float scaleFactor = mvInvScaleFactors[kpL.octave];
-            const float scaleduL = round(kpL.pt.x*scaleFactor);
-            const float scaledvL = round(kpL.pt.y*scaleFactor);
-            const float scaleduR0 = round(uR0*scaleFactor);
+            const float uR0 = mvKeysRight[bestIdxR].pt.x;        // Prende il valore della x del miglior candidato tra i KeyPoint_Right
+            const float scaleFactor = mvInvScaleFactors[kpL.octave];   // Ottiene la scaleFactor da KeyPoint_Left
+            const float scaleduL = round(kpL.pt.x*scaleFactor);     // x del KeyPoint_Left ridimensionata
+            const float scaledvL = round(kpL.pt.y*scaleFactor);     // y del KeyPoint_Left ridimensionata
+            const float scaleduR0 = round(uR0*scaleFactor);         // x del KeyPoint_Right ridimensionata
 
             // sliding window search
             const int w = 5;
-            cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1);
+            // Estrae una sottomatrice per il KeyPoint_Left
+            cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
 
             int bestDist = INT_MAX;
-            int bestincR = 0;
+            int bestincR = 0;    // è il miglior spostamento della windows
             const int L = 5;
-            vector<float> vDists;
+            vector<float> vDists;  // ha le distanze tra le finestre nelle immagini sx e dx per ogni possibile spostamento nell'intervallo da -L a +L
             vDists.resize(2*L+1);
 
-            const float iniu = scaleduR0+L-w;
+            // calcolano i limiti della finestra scorrevole nella quale verrà effettuata la ricerca dei punti
+            const float iniu = scaleduR0+L-w;       
             const float endu = scaleduR0+L+w+1;
-            if(iniu<0 || endu >= mpORBextractorRight->mvImagePyramid[kpL.octave].cols)
+            if(iniu<0 || endu >= mpORBextractorRight->mvImagePyramid[kpL.octave].cols)   // per evitare di uscire dai range
                 continue;
 
+            // Si cerca il migliore incremento e la migliore distanza
             for(int incR=-L; incR<=+L; incR++)
             {
                 cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
 
-                float dist = cv::norm(IL,IR,cv::NORM_L1);
+                float dist = cv::norm(IL,IR,cv::NORM_L1);   // Esegue la norma1 tra la finestra_sx e la finestra_dx
                 if(dist<bestDist)
                 {
                     bestDist =  dist;
