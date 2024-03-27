@@ -30,6 +30,10 @@ Each row is assigned to a thread block.
 Each thread is assigned a matrix element `M[i][j]`.
 It changes `M[i][j] to M[i][j] + M[i][j+1]` (Exploit shared memory)
 
+## cuda_divergent.cu
+
+It shows an example of cuda divergents
+
 
 
 
