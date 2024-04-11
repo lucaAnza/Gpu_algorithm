@@ -22,7 +22,7 @@ Questo poichè di default i thread massimi per blocco sono _1024_
 
 Programma che inizializza una matrice di NxM elementi in parallelo. Ogni elemento
 è inizializzato con l'id del thread che lo inizializza.
-Viene instanziato solamente un **blocco** , ma vengono utilizzati **thread.x** , **thread.y** e **thread.z**. 
+Viene instanziato solamente un **blocco** , ma vengono utilizzati **thread.x** , **thread.y** e **thread.z**.
 
 ### grid_example.cu
 

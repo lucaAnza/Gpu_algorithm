@@ -7,6 +7,7 @@ void Frame::ComputeStereoMatches()
 
     const int nRows = mpORBextractorLeft->mvImagePyramid[0].rows;   // myImagePyramid è una lista di immagini a risoluzione sempre più basse  L[0] è l'immagine con qualità maggiore.
 
+
     //Assign keypoints to row table
     vector<vector<size_t> > vRowIndices(nRows,vector<size_t>());   // Crea una matrice con nRows vettori 
 
