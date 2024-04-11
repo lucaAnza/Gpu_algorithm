@@ -1,3 +1,7 @@
+/* File temporaneo per eventuali test */
+
+
+
 #include<stdio.h>
 #include<cuda.h>
 
