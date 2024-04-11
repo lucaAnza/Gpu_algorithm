@@ -49,12 +49,8 @@ It shows an example of cuda divergents
 In this programm you can see how warps work. The output is deterministic because every instruction stay in the warp.
 ( Warp-threads are fully synchronized, there is an implicit barrier after each step/instruction )
 
-```text
-NOT-SURE ABOUT THIS! -> CHECK
-Thread-id -> 0      1       2       3       4       ...     31
-Instr     -> s=0    s=+1    X       X       X       ...    s=+2
-Instr     -> prt()  X       X       X       X       ...     X
-```
+
+<img src ="img/deterministic_output_warps.cu.png" alt = 'img' ></img>
 
 
 
