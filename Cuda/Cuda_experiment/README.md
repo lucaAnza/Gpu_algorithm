@@ -4,7 +4,8 @@
 
 ## How to compile?
 
-`nvcc <fileCuda.cu>`
+`nvcc -lcublas <fileCuda.cu>`
+
 
 ## What is it?
 
