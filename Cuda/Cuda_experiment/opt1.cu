@@ -14,67 +14,77 @@ using namespace std;
 
 
 // Funzione che aggiunge il valore "index" all'indice "index" dell'array
-__global__ void add_to_index(int *Arr , int n){
+__global__ void mul_element_for_lineIndex(int *Arr , int n){
 	int id = threadIdx.x;
-	if(id<n){
-		Arr[id] = Arr[id] + id;		
-	}
+	
+    Arr[id] = 3;
+    
 }
 	
 
 
-// Funzione che inizializza un array a 0
-__global__ void init_to_zero(int *Arr , int n ){
-	int id = threadIdx.x;
-	if(id<n){
-		Arr[id] = id;
-	}
-
-}
 		
 int main(){
 
-    const int nRows = 10;   // Numero di righe dell'immagine sinistra
-    const int nRightPoint = 10;  // Numero di KeyPoint dx
+    const int nRows = 4;   // Numero di righe dell'immagine sinistra
 
-    vector<vector<size_t> > vRowIndices(nRows,vector<size_t>());   // Crea una matrice con nRows vettori 
+    //vector<vector<size_t> > vRowIndices(nRows,vector<size_t>());   // Crea una matrice con nRows vettori 
 
     // Creazione matrice VrowIndices
+    vector<vector<size_t> > vRowIndices = {
+        {3, 7, 15},
+        {5, 6, 12, 22},
+        {2, 8, 9},
+        {6, 7}
+    };
+    //Ampliamento matrice VrowIndices
     for(int i=0; i<nRows; i++)
         vRowIndices[i].reserve(200);   
 
-    // Init di VrowIndices
-    unsigned cont = 0;
-    for(int i=0 ; i<nRows ; i++){
-        for(int j=0 ; j<i+1*2 ; j++){
-            vRowIndices[i].push_back(j);
-            cont = cont + 1;   // Da aggiungere anche al codice sorgente originale
-        }
-    }
-
-    // Stampa di VrowIndices
-    cout<<"Elementi delle matrice : "<<cont<<endl;
+    // Stampa di VrowIndices 
+    cout<<"\nVRowIndices : "<<endl;
+    int n=0;
     for(int i=0 ; i<nRows ; i++){
         for(int j=0 ; j<vRowIndices[i].size() ; j++){
             cout<<vRowIndices[i][j]<<" ";
+            n++;
         }
         cout<<endl;
     }
+    
+    // Allocazione vettore su Gpu e Cpu
+    int *GpuArr;
+    int *CpuArr = new int[n];
+	cudaMalloc(&GpuArr , sizeof(int) * n );  
 
-	int *GpuArr;
-	cudaMalloc(&GpuArr , sizeof(int) * cont );   // Allocazione vettore
+    // Init vetture su Gpu
+    size_t c = 0;
+    for(int i = 0; i < nRows; i++) {
+        for(int j = 0; j < vRowIndices[i].size(); j++) {
+            // Copia il valore dal vettore vRowIndices al vettore GpuArr
+            cudaMemcpy(&GpuArr[c], &vRowIndices[i][j], sizeof(int), cudaMemcpyHostToDevice);
+            c++;
+        }
+    }
 
-    // TO-DO: Trovare un modo per capire dove inizia o finisce una riga del vettore.
+
+
+    mul_element_for_lineIndex<<<1,n>>>(GpuArr , n);
+    // Call function
+    
+    
+    cudaMemcpy(CpuArr , GpuArr , sizeof(int) * n , cudaMemcpyDeviceToHost );
+
+    // Stampa di GpuArr
+    cout<<"\nVettore su Cpu : "<<endl;
+    for(int i=0 ; i<n ; i++){
+        cout<<CpuArr[i]<<" ";
+    }
+    cout<<endl;
 	
 
-
-    
-    /*
-    init_to_zero<<<1,n>>>(GpuArr , n);
-	add_to_index<<<1,n>>>(GpuArr , n);
-	cudaMemcpy(CpuArr , GpuArr , sizeof(int) * n , cudaMemcpyDeviceToHost );
 	cudaDeviceSynchronize();
-    */
+    
 
 
 

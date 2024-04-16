@@ -50,12 +50,14 @@ In this programm you can see how warps work. The output is deterministic because
 ( Warp-threads are fully synchronized, there is an implicit barrier after each step/instruction )
 
 
-<img src ="img/deterministic_output_warps.cu.png" alt = 'img' ></img>
+<img src ="img/deterministic_output_warps.cu.png" alt = 'img' ></img><br><br>
 
 
 ### dinamic_memory_multi_arrays.cu
 
 In this programm it's used the dinamic shared memory to use 2 array.
+
+<img src="img/dinamic_memory_multi_arrays.cu.png" alt = 'img'></img><br><br>
 
 
 

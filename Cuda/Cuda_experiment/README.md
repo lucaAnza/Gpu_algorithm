@@ -19,7 +19,18 @@ In this directory you can find some experiments for cuda optimization
 
 ### opt1.cu
 
-<img src="img/opt1.png" alt=""> </img>
+
+#### Obiettivo ottimizazione
+
+<img src="img/opt1.png" width=50% alt=""> </img>
+
+#### Simulazione
+
+Come passo intermedio, creo un programma più semplice ma molto simile al programma finale desiderato.
+
+<img src="img/opt1.cu_1.png" width=50% alt=""> </img>
+
+
 
 
 
