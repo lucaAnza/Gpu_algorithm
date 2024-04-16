@@ -18,12 +18,9 @@ In this directory you can find some experiments for cuda optimization
 
 
 
-### opt1.cu
 
 
-#### Obiettivo ottimizazione
-
-<img src="img/opt1.png" width=50% alt=""> </img>
+### opt1_simulation.cu
 
 #### Simulazione
 
@@ -31,9 +28,12 @@ Come passo intermedio, creo un programma più semplice ma molto simile al progra
 
 <img src="img/opt1.cu_1.png" width=50% alt=""> </img>
 
+### opt1.cu
 
 
+#### Obiettivo ottimizazione
 
+<img src="img/opt1.png" width=50% alt=""> </img>
 
 
 
