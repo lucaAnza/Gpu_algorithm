@@ -53,6 +53,11 @@ In this programm you can see how warps work. The output is deterministic because
 <img src ="img/deterministic_output_warps.cu.png" alt = 'img' ></img>
 
 
+### dinamic_memory_multi_arrays.cu
+
+In this programm it's used the dinamic shared memory to use 2 array.
+
+
 
 
 
