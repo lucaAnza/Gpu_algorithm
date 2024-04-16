@@ -5,17 +5,20 @@
 #include<stdio.h>
 #include<cuda.h>
 
-#define BLOCKSIZE 1024
-
+#define BLOCKSIZE 10
 __global__ void dkernel(){
-	__shared__ unsigned s;
-	
-	if  ( threadIdx.x == 0 ) s = 0;
-	if  ( threadIdx.x == 1 ) s +=1 ;
-	if  ( threadIdx.x == 100 ) s += 2;
-	if  ( threadIdx.x == 0 ) printf("s=%d\n" ,s);
+	__shared__ char str[BLOCKSIZE+1];
+	str[threadIdx.x] = 'A' + (threadIdx.x + blockIdx.x) % BLOCKSIZE;
+	if(threadIdx.x == 0){
+		str[BLOCKSIZE] = '\0';
+	}
+	//__syncthreads();
+	if(threadIdx.x == 0 ){
+		printf("%d: %s\n", blockIdx.x , str );
+	}
 }
+
 int main() {
-	dkernel<<<1,BLOCKSIZE>>>();
+	dkernel<<<10,BLOCKSIZE>>>();
 	cudaDeviceSynchronize();
 }
