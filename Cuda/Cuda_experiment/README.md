@@ -35,6 +35,26 @@ Come passo intermedio, creo un programma più semplice ma molto simile al progra
 
 <img src="img/opt1.png" width=50% alt=""> </img>
 
+#### Steps
+
+1.Capire quali variabili vanno trasportate su Gpu.
+
+```mermaid
+graph LR;
+    Cpu --data-->B(Gpu memory type)
+```
+
+
+```c++
+? myKeys[]                             // Cuda Constant Memory   
+vector<vector<size_t> > vRowIndices;   // Cuda Constant Memory   
+float minZ                             // Cuda Constant Memory   
+float minD                             // Cuda Constant Memory   
+float maxD                             // Cuda Constant Memory   
+ORBmatcher::TH_HIGH;                   // Cuda Constant Memory
+mDescriptorsRight   //From frame.      // Cuda Constant Memory   
+```
+
 
 
 

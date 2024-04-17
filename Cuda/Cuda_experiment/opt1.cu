@@ -18,6 +18,8 @@ void Frame::ComputeStereoMatches()
 
 
     // Per ogni punto chiave dell'immagine a DESTRA si prende un raggio e si aggiungono tutti gli indici dei punti a "VRowIndices"
+    int n=0; // Serve per calcolare la size dell'array su GPU (luke_add)
+    int index_refer_cpu[200 * nRows]; // Serve per capire le divisioni tra le righe dell'array (luke_add)
     for(int iR=0; iR<Nr; iR++)
     {
         const cv::KeyPoint &kp = mvKeysRight[iR];
@@ -29,8 +31,17 @@ void Frame::ComputeStereoMatches()
 
         for(int yi=minr;yi<=maxr;yi++)
             vRowIndices[yi].push_back(iR);
+            n++;  // Serve per calcolare la size dell'array su GPU (luke_add)
+            index_refer_cpu[n] = iR;  // Serve per capire le divisioni tra le righe dell'array (luke_add)
         
     }
+
+
+    //Allocazione dell'array su Gpu  (luke_add)
+    float *gpu_VRowIndices;
+    int *index_refer_gpu;
+	cudaMalloc(&GpuArr , sizeof(float) * n );  
+    cudaMalloc(&index_refer_gpu , sizeof(int) * n );  
 
 
     // Set limits for search
