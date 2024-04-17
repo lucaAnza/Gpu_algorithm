@@ -98,7 +98,7 @@ int main(){
         size = vRowIndices[i].size();
         cublasIsamin(handle, size , GpuArr + offset, 1, &result);
         offset += size;
-        std::cout << "\nMinimum element of line "<<i<<"is at index: " << result << std::endl;
+        std::cout << "\nMinimum element of line "<<i<<" is at index: " << result << std::endl;
         minium_array[i] = result;
         cublasDestroy(handle);
     }

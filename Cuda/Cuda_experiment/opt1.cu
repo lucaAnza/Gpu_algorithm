@@ -1,3 +1,35 @@
+#include<iostream>
+#include<vector>
+#include <cublas_v2.h>
+
+//Allocazione memoria costante in Gpu
+__constant__ unsigned meta[1];
+__constant__  std::vector<cv::KeyPoint> myKeys_gpu[]                            
+__constant__  float minZ_gpu                            
+__constant__  float minD_gpu                            
+__constant__  float maxD_gpu                           
+__constant__  int TH_HIGH_gpu            //   (ORBmatcher::TH_HIGH;)               
+__constant__  cv::Mat mDescriptorsRight_gpu   //From frame.     
+__constant__  vector<float> mvInvScaleFactors_gpu    
+__constant__  ORBextractor* mpORBextractorLeft_gpu 
+__constant__  vector<float> mvScaleFactors_gpu    
+
+
+
+
+//Funzione che dato contente i punti chiavi candidati destra calcola il parametro distanza per ogni elemento
+__global__ void calculateDistance(size_t *arr){
+	cout<<"minZ : "<<minD_gpu<<endl;  
+}
+
+
+// TO DO - Il vettore ritornato avrà size==nRows
+__global__ float arr* getBestDistance(unsigned *data){
+	return NULL;
+}
+
+
+
 void Frame::ComputeStereoMatches()
 {   
     mvuRight = vector<float>(N,-1.0f);
@@ -37,11 +69,7 @@ void Frame::ComputeStereoMatches()
     }
 
 
-    //Allocazione dell'array su Gpu  (luke_add)
-    float *gpu_VRowIndices;
-    int *index_refer_gpu;
-	cudaMalloc(&GpuArr , sizeof(float) * n );  
-    cudaMalloc(&index_refer_gpu , sizeof(int) * n );  
+
 
 
     // Set limits for search
@@ -174,6 +202,46 @@ void Frame::ComputeStereoMatches()
             }
         }
     }
+
+
+
+    //////////////////////////////////////////////
+    // Doppio ciclo eseguito su Gpu //////////////
+    //////////////////////////////////////////////
+
+    
+    
+    
+    //Allocazione dell'array su Gpu  (luke_add)
+    float *gpu_VRowIndices;
+    int *index_refer_gpu;
+	cudaMalloc(&GpuArr , sizeof(float) * n );  
+    cudaMalloc(&index_refer_gpu , sizeof(int) * n );  
+    //Allocazione in memoria costante cuda  (luke_add)
+    cudaMemcpyToSymbol(meta,&hmeta,sizeof(unsigned));
+    cudaMemcpyToSymbol(myKeys_gpu, myKeys,sizeof(cv::KeyPoint) * myKeys.size() );
+    cudaMemcpyToSymbol(minZ_gpu,&minZ,sizeof(float));
+    cudaMemcpyToSymbol(minD_gpu,&minD,sizeof(float));
+    cudaMemcpyToSymbol(maxD_gpu,&maxD,sizeof(float));
+
+    //Main
+	dkernel<<<1,32>>>(data);
+	cudaDeviceSynchronize();
+	print<<<1,32>>>(data);
+	cudaDeviceSynchronize();
+	return 0;
+    
+    
+    
+    //////////////////////////////////////////////
+    // Doppio ciclo eseguito su Gpu //////////////
+    //////////////////////////////////////////////
+
+
+
+
+
+
 
     sort(vDistIdx.begin(),vDistIdx.end());
     const float median = vDistIdx[vDistIdx.size()/2].first;

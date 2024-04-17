@@ -46,13 +46,16 @@ graph LR;
 
 
 ```c++
-? myKeys[]                             // Cuda Constant Memory   
-vector<vector<size_t> > vRowIndices;   // Cuda Constant Memory   
+? mvKeys[]                             // Cuda Constant Memory   
+vector<vector<size_t> > vRowIndices;   // Cuda Shared Memory   
 float minZ                             // Cuda Constant Memory   
 float minD                             // Cuda Constant Memory   
 float maxD                             // Cuda Constant Memory   
 ORBmatcher::TH_HIGH;                   // Cuda Constant Memory
-mDescriptorsRight   //From frame.      // Cuda Constant Memory   
+mDescriptorsRight   //From frame.      // Cuda Constant Memory
+mvInvScaleFactors   //From frame.      // Cuda Constant Memory  
+mpORBextractorLeft  //From frame.      // Cuda Constant Memory  
+mvScaleFactors      //From frame.      // Cuda Constant Memory
 ```
 
 
