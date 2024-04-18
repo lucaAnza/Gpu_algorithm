@@ -1,6 +1,6 @@
 # Esempi semplici di programmi CUDA e C++
 
-
+⚠ Attenzione! Per vedere se la scheda video funziona correttamente compiilare ed eseguire il seguente script :  `nvcc test_gpu.cu`
 
 ## How to compile ?
 
@@ -82,13 +82,30 @@ Otherwise, it adds y values to a global sum.
 5. Host prints the number of elements set to AVG.  
 
 
+<br>_Graphic explanation:_  
+_
+<img src ="img/data_race1.png" alt = 'img' ></img><br><br>
 
 
+### grading.cu
 
+Given roll numbers and marks of 80 students in GPU programming,assign grades.
 
+- Return an array of  [Valuation , Number of student]
 
+- Use input arrays and output array.
 
+|Name valuation  |Number valuation |
+|----------------|-----------------|
+|S|90|
+|A|80|
+|B|70|
+|C|60|
+|D|50|
+|E|40|
+|U|0|
 
+- Example:
 
-
-
+Input = [ (1,90) , (2,80) , (3,80), (4,90) , (5,0) , (6,80) , (7,80)]  
+Output = [ S = 2 , A = 3 , B = 0 , ... , U = 1 ]
