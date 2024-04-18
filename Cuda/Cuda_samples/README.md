@@ -60,6 +60,28 @@ In this programm it's used the dinamic shared memory to use 2 array.
 <img src="img/dinamic_memory_multi_arrays.cu.png" alt = 'img'></img><br><br>
 
 
+### data_race1.cu
+
+
+_Write CUDA code for the following functionality:_
+
+_Data:_
+
+```c++
+struct Point { 
+    int x,y;
+}
+int arr[N]; 
+```
+
+1. Assume following data type, filled with some values
+2. Each thread should operate on 4 elements  
+3. Find AVG of x values.  
+4. If a thread sees y value above the average, it replaces all 4 y values with AVG.  
+Otherwise, it adds y values to a global sum.  
+5. Host prints the number of elements set to AVG.  
+
+
 
 
 
