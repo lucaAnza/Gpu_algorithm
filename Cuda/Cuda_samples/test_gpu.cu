@@ -41,12 +41,16 @@ int main(){
 	cudaMemcpy(CpuArr , GpuArr , sizeof(int) * n , cudaMemcpyDeviceToHost );
 	cudaMemcpy(&sum_cpu , sum_gpu , sizeof(int) * 1 , cudaMemcpyDeviceToHost );
 	cudaDeviceSynchronize();
-
-	//stampa array finale
-	printf("sum_gpu = %d\n" , sum_cpu);
 	
+	int sumTest = 0;
 	for ( int i=0 ; i<n ; i++){
-		printf("%d\n" , CpuArr[i]);
+		sumTest += CpuArr[i];
+	}
+
+	if(sumTest == sum_cpu ){
+		printf("Hey la Gpu funziona a dovere!\nBuon lavoro!\n");
+	}else{
+		printf("ERROR : Comportamento anomalo controllare lo stato della Gpu!");
 	}
 
 	return 0;
