@@ -40,12 +40,11 @@ void Frame::ComputeStereoMatches()
     const float maxD = mbf/minZ;
 
 
-    // Chiama la funzione parallela di stereo matching   
+    // Chiama la funzione parallela di stereo matching     (luke_add)
     //TODO -> aggiungere vRowIndices ai parametri di ingresso!
-    const cv::KeyPoint &kpLuke = mvKeys[0];
-    const float x = kpLuke.pt.x;
-    cout<<"Test cpu : "<<x<<endl;
-    gpu_stereoMatches( mvKeys , minZ , minD , maxD );
+    cout<<"Test cpu : "<<mDescriptors.at<float>(0,3)<<endl;
+    cout<<"Test cpu : "<<mDescriptors.total()<<endl;
+    gpu_stereoMatches( mvKeys , minZ , minD , maxD , ORBmatcher::TH_HIGH , mDescriptorsRight  );
     //gpu_stereoMatches( mvKeys , minZ , minD , maxD , ORBmatcher::TH_HIGH , mDescriptorsRight , mvInvScaleFactors , mpORBextractorLeft , mvScaleFactors );
 
 
