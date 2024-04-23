@@ -4,15 +4,15 @@
 
 //Allocazione memoria costante in Gpu
 __constant__ unsigned meta[1];
-__constant__  std::vector<cv::KeyPoint> myKeys_gpu[]                            
-__constant__  float minZ_gpu                            
-__constant__  float minD_gpu                            
-__constant__  float maxD_gpu                           
-__constant__  int TH_HIGH_gpu            //   (ORBmatcher::TH_HIGH;)               
-__constant__  cv::Mat mDescriptorsRight_gpu   //From frame.     
-__constant__  vector<float> mvInvScaleFactors_gpu    
-__constant__  ORBextractor* mpORBextractorLeft_gpu 
-__constant__  vector<float> mvScaleFactors_gpu    
+__constant__  std::vector<cv::KeyPoint> myKeys_gpu[];                       
+__constant__  float minZ_gpu;   
+__constant__  float minD_gpu;                           
+__constant__  float maxD_gpu;                           
+__constant__  int TH_HIGH_gpu;                          //   (ORBmatcher::TH_HIGH;)               
+__constant__  cv::Mat mDescriptorsRight_gpu;            //From frame.     
+__constant__  vector<float> mvInvScaleFactors_gpu;  
+__constant__  ORBextractor* mpORBextractorLeft_gpu;
+__constant__  vector<float> mvScaleFactors_gpu;    
 
 
 
@@ -215,7 +215,7 @@ void Frame::ComputeStereoMatches()
     //Allocazione dell'array su Gpu  (luke_add)
     float *gpu_VRowIndices;
     int *index_refer_gpu;
-	cudaMalloc(&GpuArr , sizeof(float) * n );  
+	cudaMalloc(&GpuArr , sizeof(float) * n );
     cudaMalloc(&index_refer_gpu , sizeof(int) * n );  
     //Allocazione in memoria costante cuda  (luke_add)
     cudaMemcpyToSymbol(meta,&hmeta,sizeof(unsigned));
