@@ -23,24 +23,36 @@ __constant__  float maxD_gpu;
 __constant__  int TH_HIGH_gpu;
 
 
-__global__ void cuda_test(cv::KeyPoint *mvKeys_gpu , float *mDescriptorsRight_gpu ) {
+__global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , float* mDescriptors_gpu , float *mDescriptorsRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu 
+                        , size_t *size_refer_gpu ) {
     
-    int temp = threadIdx.x;
+    int id = threadIdx.x;
+    int b_id = blockIdx.x;
 
-    printf("%f , %f , %f , %d \n" , minZ_gpu , minD_gpu , maxD_gpu , TH_HIGH_gpu );
-    printf("punto prova di mvKeys[0] : %f\n" , mvKeys_gpu->pt.x);
-    printf("mDescriptorRight : %f \n" , mDescriptorsRight_gpu[3]);
-    printf("\n\n\n");
+    if(id < size_refer_gpu[b_id]){
+        printf("riga %d , elemento[%d] = " , b_id , id , -1 );
+    }
+
+    printf("\n\n\n");    
 
 }
 
 
-void gpu_stereoMatches(std::vector<cv::KeyPoint> mvKeys , float minZ , float minD , float maxD , int TH_HIGH , cv::Mat mDescriptorsRight ){
+void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , float minZ , float minD , float maxD , int TH_HIGH , cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
+                      std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer ){
 
     cv::KeyPoint *mvKeys_gpu;
-    float *mDescriptorsRight_gpu;
     float *mvInvScaleFactors_gpu;
+    float *mDescriptorsRight_gpu;
+    float *mDescriptors_gpu;
     float *mvScaleFactors_gpu;
+    size_t *size_refer_gpu;
+    size_t *vRowIndices_gpu;
+    int num_elements_left = mDescriptors.total();
+    int num_elements_right = mDescriptorsRight.total();
+    unsigned total_element=0;
+    unsigned nRows = vRowIndices.size();
+
     
     // Copia parametri input in memoria costante
     cudaMemcpyToSymbol(minZ_gpu, &minZ, 1 * sizeof(float));
@@ -51,34 +63,47 @@ void gpu_stereoMatches(std::vector<cv::KeyPoint> mvKeys , float minZ , float min
     //Allocazione memoria per array dinamici
     cudaMalloc(&mvKeys_gpu , sizeof(cv::KeyPoint) * mvKeys.size() );
     cudaMemcpy(mvKeys_gpu, mvKeys.data(), sizeof(cv::KeyPoint) * mvKeys.size(), cudaMemcpyHostToDevice); 
+    cudaMalloc(&mDescriptors_gpu, num_elements_left * sizeof(float));
+    cudaMemcpy(mDescriptors_gpu, (float*)mDescriptors.data, num_elements_left * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMalloc(&mDescriptorsRight_gpu, num_elements_right * sizeof(float));
+    cudaMemcpy(mDescriptorsRight_gpu, (float*)mDescriptorsRight.data, num_elements_right * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMalloc(&mvInvScaleFactors_gpu , sizeof(float) * mvInvScaleFactors.size() );
+    cudaMemcpy(mvInvScaleFactors_gpu, mvInvScaleFactors.data(), sizeof(float) * mvInvScaleFactors.size(), cudaMemcpyHostToDevice); 
+    cudaMalloc(&mvScaleFactors_gpu , sizeof(float) * mvScaleFactors.size() );
+    cudaMemcpy(mvScaleFactors_gpu, mvScaleFactors.data(), sizeof(float) * mvScaleFactors.size(), cudaMemcpyHostToDevice);
+    cudaMalloc(&size_refer_gpu , sizeof(size_t) * size_refer.size() );
+    cudaMemcpy(size_refer_gpu, size_refer.data(), sizeof(size_t) * size_refer.size(), cudaMemcpyHostToDevice); 
+    //TODO -> Evitare di fare questo ciclo e di allocare vRowIndices_temp (spreco di memoria e tempo)
+    std::vector<size_t> vRowIndices_temp;
+    for(int i=0 ; i<vRowIndices.size() ; i++){
+        for(int j=0; j<vRowIndices[j].size() ; j++){
+            total_element++;
+            vRowIndices_temp.push_back(vRowIndices[i][j]);
+        }
+    }
+    cudaMalloc(&vRowIndices_gpu , sizeof(size_t) * total_element );
+    cudaMemcpy(vRowIndices_gpu, vRowIndices.data(), sizeof(size_t) * total_element, cudaMemcpyHostToDevice); 
 
+         
     
-    //////////////////////////////////////////
-    //////////////////////////////////////////     -> Capire perchè c'è incongruenza tra num_elements della GPU e della CPU e finire di vedere se mDescriptorsRight
-    //////////// TODO ///////////////////////            è stata passata corretamente.
-    int num_elements = mDescriptorsRight.total();
-    printf("tot elem = %d" , num_elements);
-    cudaMalloc(&mDescriptorsRight_gpu, num_elements * sizeof(float));
-    cudaMemcpy(mDescriptorsRight_gpu, mDescriptorsRight.ptr<float>(), num_elements * sizeof(float), cudaMemcpyHostToDevice);
-    //////////////////////////////////////////
-    //////////////////////////////////////////
-    //////////// TODO ///////////////////////
-    
-    
-     
     printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
-    cuda_test<<<1,1>>>(mvKeys_gpu , mDescriptorsRight_gpu);
+    //Ogni blocco rappresenta una riga di VrowIndices e ogni thread le varie colonne
+    cuda_test<<<nRows,200>>>(vRowIndices_gpu , mvKeys_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu );
     cudaDeviceSynchronize();
 
     //Deallocazione della memoria
     cudaFree(mvKeys_gpu);
+    cudaFree(mvInvScaleFactors_gpu);
+    cudaFree(mDescriptorsRight_gpu);
+    cudaFree(mDescriptors_gpu);
+    cudaFree(mvScaleFactors_gpu);
+    cudaFree(size_refer_gpu);
+    cudaFree(vRowIndices_gpu);
 }
 
 
 
 /*
-
 void gpu_stereoMatches(std::vector<cv::KeyPoint> mvKeys , float minZ , float minD , float maxD , int TH_HIGH , cv::Mat mDescriptorsRight , 
                         vector<float> mvInvScaleFactors , ORBextractor* mpORBextractorLeft , vector<float> mvScaleFactors ){
-
 */

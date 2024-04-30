@@ -1,5 +1,7 @@
 void Frame::ComputeStereoMatches()
 {   
+
+
     mvuRight = vector<float>(N,-1.0f);
     mvDepth = vector<float>(N,-1.0f);
 
@@ -7,12 +9,17 @@ void Frame::ComputeStereoMatches()
 
     const int nRows = mpORBextractorLeft->mvImagePyramid[0].rows;   // myImagePyramid è una lista di immagini a risoluzione sempre più basse  L[0] è l'immagine con qualità maggiore.
 
+    // Creazione array riferimento per GPU (luke_add)
+    vector<size_t> size_refer;   // Array in cui ogni elemento c'è il numero di colonne per ogni riga di vRowIndices
+    size_refer.resize(nRows);
 
     //Assign keypoints to row table
     vector<vector<size_t> > vRowIndices(nRows,vector<size_t>());   // Crea una matrice con nRows vettori 
 
-    for(int i=0; i<nRows; i++)
+    for(int i=0; i<nRows; i++){
         vRowIndices[i].reserve(200);   // Si prevedono almeno 200 punti chiave per ogni riga dell'immagine LEFT
+        size_refer[i] = 0;  // Init of the array (luke_add)
+    }
 
     const int Nr = mvKeysRight.size();  // Numero punti chiave dell'immagine destra
 
@@ -27,16 +34,30 @@ void Frame::ComputeStereoMatches()
         const int maxr = ceil(kpY+r);
         const int minr = floor(kpY-r);
 
-        for(int yi=minr;yi<=maxr;yi++)
+        for(int yi=minr;yi<=maxr;yi++){
             vRowIndices[yi].push_back(iR);
+            size_refer[yi]++;   //(luke_add)
+        }
+
         
     }
-
 
     // Set limits for search
     const float minZ = mb;
     const float minD = 0;
     const float maxD = mbf/minZ;
+
+
+    // Chiama la funzione parallela di stereo matching     (luke_add)
+    //TODO -> aggiungere vRowIndices ai parametri di ingresso!
+    cout<<"Stampa di size_refer : "<<endl;
+    for(int i=0 ; i<size_refer.size() ; i++){
+        cout<<i<<" : "<<size_refer[i]<<endl;
+    }
+    gpu_stereoMatches( vRowIndices ,mvKeys , minZ , minD , maxD , ORBmatcher::TH_HIGH , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer );
+    //gpu_stereoMatches( mvKeys , minZ , minD , maxD , ORBmatcher::TH_HIGH , mDescriptorsRight , mvInvScaleFactors , mpORBextractorLeft , mvScaleFactors );
+
+
 
     // For each left keypoint search a match in the right image  -> I candidati possibili sono nel vettore "vRowIndices -> vCandidates"
     vector<pair<int, int> > vDistIdx;
