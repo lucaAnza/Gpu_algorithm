@@ -114,3 +114,7 @@ Output = [ S = 2 , A = 3 , B = 0 , ... , U = 1 ]
 ### AtomicCas_example.cu
 
 This pgm shows the use of atomicCas.
+
+- On most executions, you would see the output of the first if.
+- And could happened that thread1 executes the third if.
+
