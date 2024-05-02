@@ -50,7 +50,8 @@ int main(){
 	if(sumTest == sum_cpu ){
 		printf("Hey la Gpu funziona a dovere!\nBuon lavoro!\n");
 	}else{
-		printf("ERROR : Comportamento anomalo controllare lo stato della Gpu!");
+		printf("ERROR : Comportamento anomalo controllare lo stato della Gpu!\n");
+		
 	}
 
 	return 0;

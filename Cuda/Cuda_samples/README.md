@@ -109,3 +109,8 @@ Given roll numbers and marks of 80 students in GPU programming,assign grades.
 
 Input = [ (1,90) , (2,80) , (3,80), (4,90) , (5,0) , (6,80) , (7,80)]  
 Output = [ S = 2 , A = 3 , B = 0 , ... , U = 1 ]
+
+
+### AtomicCas_example.cu
+
+This pgm shows the use of atomicCas.
