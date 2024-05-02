@@ -12,9 +12,10 @@
 #include <opencv2/core/hal/interface.h>
 #include <stdio.h>
 #include "gpu_stereoMatches.h"
-
 #include <vector>
 #include <opencv2/core/core.hpp>
+
+#define VROWINDICES_MAX_COL 120  //TODO -> Può trasformarsi in una variabile ed essere la massima size delle righe di vrowindices.
 
 //Allocazione memoria costante in Gpu                      
 __constant__  float minZ_gpu;   
@@ -24,16 +25,20 @@ __constant__  int TH_HIGH_gpu;
 
 
 __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , float* mDescriptors_gpu , float *mDescriptorsRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu 
-                        , size_t *size_refer_gpu ) {
+                        , size_t *size_refer_gpu  , size_t *incremental_size_refer_gpu) {
     
-    int id = threadIdx.x;
-    int b_id = blockIdx.x;
+    size_t id = threadIdx.x;
+    size_t b_id = blockIdx.x;
+    size_t num_elem = size_refer_gpu[b_id];
+    size_t index;
 
     if(id < size_refer_gpu[b_id]){
-        printf("riga %d , elemento[%d] = " , b_id , id , -1 );
+        index = ((incremental_size_refer_gpu[b_id] - num_elem) + id);
+        //printf(" inc[b_id]{%lld} , b_id[%lld] , id[%lld] , num_elem[%lld] , index[%lld]\n" , incremental_size_refer_gpu[b_id] , b_id , id , num_elem , index);
+        printf("riga %lld , elemento[%lld] = %d \n" , b_id , index , -1 );
     }
 
-    printf("\n\n\n");    
+    printf("\n");    
 
 }
 
@@ -47,6 +52,7 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     float *mDescriptors_gpu;
     float *mvScaleFactors_gpu;
     size_t *size_refer_gpu;
+    size_t *incremental_size_refer_gpu;
     size_t *vRowIndices_gpu;
     int num_elements_left = mDescriptors.total();
     int num_elements_right = mDescriptorsRight.total();
@@ -73,14 +79,22 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     cudaMemcpy(mvScaleFactors_gpu, mvScaleFactors.data(), sizeof(float) * mvScaleFactors.size(), cudaMemcpyHostToDevice);
     cudaMalloc(&size_refer_gpu , sizeof(size_t) * size_refer.size() );
     cudaMemcpy(size_refer_gpu, size_refer.data(), sizeof(size_t) * size_refer.size(), cudaMemcpyHostToDevice); 
-    //TODO -> Evitare di fare questo ciclo e di allocare vRowIndices_temp (spreco di memoria e tempo)
+    //TODO -> Evitare di fare questo ciclo e di allocare vRowIndices_temp (spreco di memoria e tempo) OR eseguirlo in GPU
     std::vector<size_t> vRowIndices_temp;
+    std::vector<size_t> incremental_size_refer;
+    incremental_size_refer.resize(size_refer.size());
     for(int i=0 ; i<vRowIndices.size() ; i++){
+        incremental_size_refer[i] = 0;
+        if(i>0)
+            incremental_size_refer[i] = incremental_size_refer[i] + size_refer[i-1];
+
         for(int j=0; j<vRowIndices[j].size() ; j++){
             total_element++;
             vRowIndices_temp.push_back(vRowIndices[i][j]);
         }
     }
+    cudaMalloc(&incremental_size_refer_gpu , sizeof(size_t) * incremental_size_refer.size() );
+    cudaMemcpy(incremental_size_refer_gpu, incremental_size_refer.data(), sizeof(size_t) * size_refer.size(), cudaMemcpyHostToDevice); 
     cudaMalloc(&vRowIndices_gpu , sizeof(size_t) * total_element );
     cudaMemcpy(vRowIndices_gpu, vRowIndices.data(), sizeof(size_t) * total_element, cudaMemcpyHostToDevice); 
 
@@ -88,7 +102,7 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     
     printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
     //Ogni blocco rappresenta una riga di VrowIndices e ogni thread le varie colonne
-    cuda_test<<<nRows,200>>>(vRowIndices_gpu , mvKeys_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu );
+    cuda_test<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , incremental_size_refer_gpu , size_refer_gpu );
     cudaDeviceSynchronize();
 
     //Deallocazione della memoria
@@ -107,3 +121,4 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
 void gpu_stereoMatches(std::vector<cv::KeyPoint> mvKeys , float minZ , float minD , float maxD , int TH_HIGH , cv::Mat mDescriptorsRight , 
                         vector<float> mvInvScaleFactors , ORBextractor* mpORBextractorLeft , vector<float> mvScaleFactors ){
 */
+
