@@ -34,8 +34,6 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , f
 
     if(id < size_refer_gpu[b_id]){
         index = ((incremental_size_refer_gpu[b_id] - num_elem) + id);
-        //printf(" inc[b_id]{%lld} , b_id[%lld] , id[%lld] , num_elem[%lld] , index[%lld]\n" , incremental_size_refer_gpu[b_id] , b_id , id , num_elem , index);
-        printf("riga %lld , elemento[%lld] = %d \n" , b_id , index , -1 );
     }
 
     printf("\n");    
@@ -79,16 +77,19 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     cudaMemcpy(mvScaleFactors_gpu, mvScaleFactors.data(), sizeof(float) * mvScaleFactors.size(), cudaMemcpyHostToDevice);
     cudaMalloc(&size_refer_gpu , sizeof(size_t) * size_refer.size() );
     cudaMemcpy(size_refer_gpu, size_refer.data(), sizeof(size_t) * size_refer.size(), cudaMemcpyHostToDevice); 
+
+
     //TODO -> Evitare di fare questo ciclo e di allocare vRowIndices_temp (spreco di memoria e tempo) OR eseguirlo in GPU
     std::vector<size_t> vRowIndices_temp;
     std::vector<size_t> incremental_size_refer;
     incremental_size_refer.resize(size_refer.size());
+    printf("vrowindices.size() %d\n" , vRowIndices.size() );
     for(int i=0 ; i<vRowIndices.size() ; i++){
         incremental_size_refer[i] = 0;
         if(i>0)
             incremental_size_refer[i] = incremental_size_refer[i] + size_refer[i-1];
 
-        for(int j=0; j<vRowIndices[j].size() ; j++){
+        for(int j=0; j<vRowIndices[i].size() ; j++){
             total_element++;
             vRowIndices_temp.push_back(vRowIndices[i][j]);
         }
@@ -96,11 +97,16 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     cudaMalloc(&incremental_size_refer_gpu , sizeof(size_t) * incremental_size_refer.size() );
     cudaMemcpy(incremental_size_refer_gpu, incremental_size_refer.data(), sizeof(size_t) * size_refer.size(), cudaMemcpyHostToDevice); 
     cudaMalloc(&vRowIndices_gpu , sizeof(size_t) * total_element );
-    cudaMemcpy(vRowIndices_gpu, vRowIndices.data(), sizeof(size_t) * total_element, cudaMemcpyHostToDevice); 
+    cudaMemcpy(vRowIndices_gpu, vRowIndices_temp.data(), sizeof(size_t) * total_element, cudaMemcpyHostToDevice); 
 
-         
     
-    printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
+    /*
+    printf("Test on cpuluka: (%u) \n" , total_element);
+    for(int i=0 ; i<total_element ; i++){
+        printf("%d : %zu \n" , i , vRowIndices_temp[i]);
+    }*/
+
+    printf("Sto per lanciare il test della GPU by Luca Anzald: \n");
     //Ogni blocco rappresenta una riga di VrowIndices e ogni thread le varie colonne
     cuda_test<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , incremental_size_refer_gpu , size_refer_gpu );
     cudaDeviceSynchronize();
@@ -112,7 +118,9 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     cudaFree(mDescriptors_gpu);
     cudaFree(mvScaleFactors_gpu);
     cudaFree(size_refer_gpu);
+    cudaFree(incremental_size_refer_gpu);
     cudaFree(vRowIndices_gpu);
+
 }
 
 
