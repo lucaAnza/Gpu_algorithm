@@ -46,17 +46,31 @@ graph LR;
 
 
 ```c++
-? mvKeys[]                             // Cuda Constant Memory   
-vector<vector<size_t> > vRowIndices;   // Cuda Shared Memory   
-float minZ                             // Cuda Constant Memory   
-float minD                             // Cuda Constant Memory   
-float maxD                             // Cuda Constant Memory   
-ORBmatcher::TH_HIGH;                   // Cuda Constant Memory
-mDescriptorsRight   //From frame.      // Cuda Constant Memory
-mvInvScaleFactors   //From frame.      // Cuda Constant Memory  
-mpORBextractorLeft  //From frame.      // Cuda Constant Memory  
-mvScaleFactors      //From frame.      // Cuda Constant Memory
+std::vector<std::vector<size_t>> vRowIndices    // Cuda Global Memory
+std::vector<cv::KeyPoint> mvKeys                // Cuda Global Memory
+std::vector<cv::KeyPoint> mvKeysRight           // Cuda Global Memory
+float minZ                                      // Cuda Constant Memory   
+float minD                                      // Cuda Constant Memory   
+float maxD                                      // Cuda Constant Memory   
+int TH_HIGH                                     // Cuda Constant Memory   
+cv::Mat mDescriptors                            // Cuda Global Memory
+cv::Mat mDescriptorsRight                       // Cuda Global Memory
+std::vector<float> mvInvScaleFactors            // Cuda Global Memory
+std::vector<float> mvScaleFactors               // Cuda Global Memory
+std::vector<size_t> size_refer                  // Cuda Global Memory
+...
 ```
+
+<br>
+
+2.Creare array per navigazione della struttura dati principale <b>vRowIndices</b> (array multi-dimensionale irregolare).
+
+<b> size_refer </b> + <b> incremental_size_refer </b>
+
+<img src="img/size_refer.png" width=50% alt=""> </img>
+
+- size_refer -> Rappresenta il numero di colonne per ogni riga.
+- incremental_size_refer -> Rappresenta il numero di colonne fino a quella riga(riga compresa).
 
 
 

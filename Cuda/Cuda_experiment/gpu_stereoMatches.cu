@@ -25,7 +25,7 @@ __constant__  int TH_HIGH_gpu;
 __constant__  int mDescriptors_gpu_cols;
 
 
-__global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , float* mDescriptors_gpu , float *mDescriptorsRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu 
+__global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu ,  float* mDescriptors_gpu , float *mDescriptorsRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu 
                         , size_t *size_refer_gpu  , size_t *incremental_size_refer_gpu) {
     
     size_t id = threadIdx.x;    // Each thread rappresent one element
@@ -36,7 +36,7 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , f
     if(id < size_refer_gpu[b_id]){
         index = ((incremental_size_refer_gpu[b_id] - num_elem) + id);
 
-        //Pre-for
+        //Pre-For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
         const cv::KeyPoint &kpL = mvKeys_gpu[b_id];
         const int &levelL = kpL.octave;
         const float &vL = kpL.pt.y;
@@ -48,31 +48,38 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , f
         //if(vCandidates.empty())                                       //TODELETE  
         //    return;  // Terminate thread                              //TODELETE
 
-        /*
-        const float minU = uL-maxD;
-        const float maxU = uL-minD;
+        
+        const float minU = uL-maxD_gpu;
+        const float maxU = uL-minD_gpu;
 
         if(maxU<0)
-            continue;
+            return;
 
         int bestDist = TH_HIGH_gpu;
         size_t bestIdxR = 0;
 
-        const cv::Mat &dL = mDescriptors_gpu.row(iL);   // NON È POSSIBILE USARE .ROW() È UN ARRAY
-        */
-    
+        //const cv::Mat &dL = mDescriptors_gpu.row(iL);   // TODELETE
+
+        //For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
+        //const size_t iR = vRowIndices_gpu[incremental_size_refer_gpu[vL] - size_refer[vL] + id] ;
+        //const cv::KeyPoint &kpR = mvKeysRight_gpu[iR];   // kpR assume il valore del punto corrispondente al candidato
+
+        //if(kpR.octave<levelL-1 || kpR.octave>levelL+1)  // kpR.octave rappresenta il livello piramidale (scala) del punto a DX, levelL di quello a SX
+        //    return;
+
+        
 
     }
 
-    printf("\n");    
 
 }
 
 
-void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , float minZ , float minD , float maxD , int TH_HIGH , cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
+void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
                       std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer ){
 
     cv::KeyPoint *mvKeys_gpu;
+    cv::KeyPoint *mvKeysRight_gpu;
     float *mvInvScaleFactors_gpu;
     float *mDescriptorsRight_gpu;
     float *mDescriptors_gpu;
@@ -96,6 +103,8 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     //Allocazione memoria per array dinamici
     cudaMalloc(&mvKeys_gpu , sizeof(cv::KeyPoint) * mvKeys.size() );
     cudaMemcpy(mvKeys_gpu, mvKeys.data(), sizeof(cv::KeyPoint) * mvKeys.size(), cudaMemcpyHostToDevice); 
+    cudaMalloc(&mvKeysRight_gpu , sizeof(cv::KeyPoint) * mvKeysRight.size() );
+    cudaMemcpy(mvKeysRight_gpu, mvKeysRight.data(), sizeof(cv::KeyPoint) * mvKeysRight.size(), cudaMemcpyHostToDevice); 
     cudaMalloc(&mDescriptors_gpu, num_elements_left * sizeof(float));
     cudaMemcpy(mDescriptors_gpu, (float*)mDescriptors.data, num_elements_left * sizeof(float), cudaMemcpyHostToDevice);
     cudaMalloc(&mDescriptorsRight_gpu, num_elements_right * sizeof(float));
@@ -137,11 +146,12 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
 
     printf("Sto per lanciare il test della GPU by Luca Anzald: \n");
     //Ogni blocco rappresenta una riga di VrowIndices e ogni thread le varie colonne
-    cuda_test<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , incremental_size_refer_gpu , size_refer_gpu );
+    cuda_test<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , incremental_size_refer_gpu , size_refer_gpu );
     cudaDeviceSynchronize();
 
     //Deallocazione della memoria
     cudaFree(mvKeys_gpu);
+    cudaFree(mvKeysRight_gpu);
     cudaFree(mvInvScaleFactors_gpu);
     cudaFree(mDescriptorsRight_gpu);
     cudaFree(mDescriptors_gpu);
