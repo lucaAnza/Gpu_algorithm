@@ -25,6 +25,26 @@ __constant__  int TH_HIGH_gpu;
 __constant__  int mDescriptors_gpu_cols;
 
 
+// Funzione che calcola la distanza tra 2 vettori
+__device__ int DescriptorDistance(const float *a, const float* b){
+
+    int dist=0;
+
+    const int32_t* a_int = reinterpret_cast<const int32_t*>(a);
+    const int32_t* b_int = reinterpret_cast<const int32_t*>(b);
+
+    for(int i=0; i<8; i++) {
+        unsigned int v = a_int[i] ^ b_int[i];
+        v = v - ((v >> 1) & 0x55555555);
+        v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
+        dist += (((v + (v >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
+    }
+
+    return dist;
+}
+
+
+
 __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu ,  float* mDescriptors_gpu , float *mDescriptorsRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu 
                         , size_t *size_refer_gpu  , size_t *incremental_size_refer_gpu) {
     
@@ -61,12 +81,44 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
         //const cv::Mat &dL = mDescriptors_gpu.row(iL);   // TODELETE
 
         //For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
-        //const size_t iR = vRowIndices_gpu[incremental_size_refer_gpu[vL] - size_refer[vL] + id] ;
-        //const cv::KeyPoint &kpR = mvKeysRight_gpu[iR];   // kpR assume il valore del punto corrispondente al candidato
+        const size_t iR = vRowIndices_gpu[incremental_size_refer_gpu[(int)vL] - size_refer_gpu[(int)vL] + id] ;
+        const cv::KeyPoint &kpR = mvKeysRight_gpu[iR];   
 
-        //if(kpR.octave<levelL-1 || kpR.octave>levelL+1)  // kpR.octave rappresenta il livello piramidale (scala) del punto a DX, levelL di quello a SX
-        //    return;
+        if(kpR.octave<levelL-1 || kpR.octave>levelL+1)  
+            return;
+        
+        const float &uR = kpR.pt.x;  
 
+        if(uR>=minU && uR<=maxU) {   // Controllo se la x del keypointCandidatoDX sta in un range
+        
+            //const cv::Mat &dR = mDescriptorsRight.row(iR);     //TODELETE
+
+            const float *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * b_id );
+            const float *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
+            const int dist = DescriptorDistance(dL , dR);   
+            
+            ////////////////////////////
+            ////////// TO DO ///////////
+            ////////////////////////////
+            // Testare se il valore dist è corretto ed è uguale a quello generato sulla CPU
+            ////////////////////////////
+            ////////// TO DO ///////////
+            ////////////////////////////
+
+
+            /*if(b_id == 130 && id == 10){     //TESTING
+                printf("[GPU]dist of element [%d][%d] = %d \n" , b_id , id , dist);
+            }*/
+
+            /*                               CONTINUE FROM HERE...
+            if(dist<bestDist)
+            {
+                bestDist = dist;
+                bestIdxR = iR;
+            }
+            */
+        }
+        
         
 
     }
