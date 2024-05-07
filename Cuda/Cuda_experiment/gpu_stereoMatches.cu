@@ -22,18 +22,46 @@ __constant__  float minZ_gpu;
 __constant__  float minD_gpu;                           
 __constant__  float maxD_gpu;  
 __constant__  int TH_HIGH_gpu;
+__constant__  int mDescriptors_gpu_cols;
 
 
 __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , float* mDescriptors_gpu , float *mDescriptorsRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu 
                         , size_t *size_refer_gpu  , size_t *incremental_size_refer_gpu) {
     
-    size_t id = threadIdx.x;
-    size_t b_id = blockIdx.x;
+    size_t id = threadIdx.x;    // Each thread rappresent one element
+    size_t b_id = blockIdx.x;   // Each block rappresent one row
     size_t num_elem = size_refer_gpu[b_id];
     size_t index;
 
     if(id < size_refer_gpu[b_id]){
         index = ((incremental_size_refer_gpu[b_id] - num_elem) + id);
+
+        //Pre-for
+        const cv::KeyPoint &kpL = mvKeys_gpu[b_id];
+        const int &levelL = kpL.octave;
+        const float &vL = kpL.pt.y;
+        const float &uL = kpL.pt.x;
+        
+        
+        //const vector<size_t> &vCandidates = vRowIndices_gpu[vL];      //TODELETE  
+
+        //if(vCandidates.empty())                                       //TODELETE  
+        //    return;  // Terminate thread                              //TODELETE
+
+        /*
+        const float minU = uL-maxD;
+        const float maxU = uL-minD;
+
+        if(maxU<0)
+            continue;
+
+        int bestDist = TH_HIGH_gpu;
+        size_t bestIdxR = 0;
+
+        const cv::Mat &dL = mDescriptors_gpu.row(iL);   // NON È POSSIBILE USARE .ROW() È UN ARRAY
+        */
+    
+
     }
 
     printf("\n");    
@@ -49,8 +77,8 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     float *mDescriptorsRight_gpu;
     float *mDescriptors_gpu;
     float *mvScaleFactors_gpu;
-    size_t *size_refer_gpu;
-    size_t *incremental_size_refer_gpu;
+    size_t *size_refer_gpu;                  // Vettore che associa ogni elemento N al numero di colonne del vettore vRowIndices[N]
+    size_t *incremental_size_refer_gpu;      // Vettore che associa ogni elemento N alla somma del numero di colonne del vettore fino a vRowIndices[N]
     size_t *vRowIndices_gpu;
     int num_elements_left = mDescriptors.total();
     int num_elements_right = mDescriptorsRight.total();
@@ -63,6 +91,7 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     cudaMemcpyToSymbol(minD_gpu, &minD, 1 * sizeof(float));
     cudaMemcpyToSymbol(maxD_gpu, &maxD, 1 * sizeof(float));
     cudaMemcpyToSymbol(TH_HIGH_gpu, &TH_HIGH, 1 * sizeof(int));
+    cudaMemcpyToSymbol(mDescriptors_gpu_cols, &mDescriptors.cols, 1 * sizeof(int));
 
     //Allocazione memoria per array dinamici
     cudaMalloc(&mvKeys_gpu , sizeof(cv::KeyPoint) * mvKeys.size() );
