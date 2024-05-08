@@ -24,9 +24,15 @@ In this directory you can find some experiments for cuda optimization
 
 #### Simulazione
 
-Come passo intermedio, creo un programma più semplice ma molto simile al programma finale desiderato.
+Come passo intermedio, creo un programma più semplice ma in parte simile al programma finale desiderato.
 
-<img src="img/opt1.cu_1.png" width=50% alt=""> </img>
+<img src="img/opt1_simulation.png" width=50% alt=""> </img>
+
+- Le strutture dati utilizzate possono essere molto diverse dall'esempio.
+- Il procedimento è molto più complesso.
+- Questo è uno schema ad "altissimo" livello.ù
+
+<br><br>
 
 ### opt1.cu
 
@@ -37,7 +43,14 @@ Come passo intermedio, creo un programma più semplice ma molto simile al progra
 
 #### Steps
 
-1.Capire quali variabili vanno trasportate su Gpu.
+1.Integrazione codice CUDA nel codice sorgente
+
+- Creazione di 2 nuovi file: <b>src/\<file\>.cu</b> , <b>include/\<file\>.h</b>.
+- Aggiungere al file <b>/CmakeLists.txt</b> i 2 file creati.
+
+<br>
+
+2.Capire quali variabili vanno trasportate su Gpu.
 
 ```mermaid
 graph LR;
@@ -63,7 +76,7 @@ std::vector<size_t> size_refer                  // Cuda Global Memory
 
 <br>
 
-2.Creare array per navigazione della struttura dati principale <b>vRowIndices</b> (array multi-dimensionale irregolare).
+3.Creare array per navigazione della struttura dati principale <b>vRowIndices</b> (array multi-dimensionale irregolare).
 
 <b> size_refer </b> + <b> incremental_size_refer </b>
 
@@ -74,7 +87,7 @@ std::vector<size_t> size_refer                  // Cuda Global Memory
 
 <br>
 
-3.Riscrittura della funzione ```int ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b)``` trasformandola in una funzione `__device__`.
+4.Riscrittura della funzione ```int ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b)``` trasformandola in una funzione `__device__`.
 
 - Funzione presente in <b>ORBmatcher.cc</b>
 - Funzione originale :
