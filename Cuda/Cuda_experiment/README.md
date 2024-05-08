@@ -9,13 +9,22 @@
 
 ## What is it?
 
-In this directory you can find some experiments for cuda optimization
+In this directory you can find some experiments for cuda optimization.  
+And explanation of the iterative algoritmh.
+
+- <b>Frame.cc</b> contains the function to optimize.
+- <b>Gpu_stereoMatches.cu</b> contains the optimization of the function.
+- <b>Gpu_stereoMatches.h</b> contains the header optimization of the function.
 
 ## Usefull links
 
 - [Thrust-algoritm sort_function()](https://nvidia.github.io/cccl/thrust/api/groups/group__algorithms.html)
 - [Cudacublas min_function()](https://docs.nvidia.com/cuda/cublas/index.html#cublasi-t-amin)
 
+## Explanation part1 of the iterative algorithm
+
+
+<img src="img/best_candidate_explain.png" width=50% alt=""> </img>
 
 
 

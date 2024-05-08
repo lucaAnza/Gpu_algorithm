@@ -26,7 +26,7 @@ __constant__  int mDescriptors_gpu_cols;
 
 
 // Funzione che calcola la distanza tra 2 vettori
-__device__ int DescriptorDistance(const float *a, const float* b){
+__device__ int DescriptorDistance(const unsigned char *a, const unsigned char* b){
 
     int dist=0;
 
@@ -45,7 +45,7 @@ __device__ int DescriptorDistance(const float *a, const float* b){
 
 
 
-__global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu ,  float* mDescriptors_gpu , float *mDescriptorsRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu 
+__global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu ,  unsigned char   * mDescriptors_gpu , unsigned char *mDescriptorsRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu 
                         , size_t *size_refer_gpu  , size_t *incremental_size_refer_gpu) {
     
     size_t id = threadIdx.x;    // Each thread rappresent one element
@@ -93,22 +93,20 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
         
             //const cv::Mat &dR = mDescriptorsRight.row(iR);     //TODELETE
 
-            const float *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * b_id );
-            const float *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
+            const unsigned char *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * b_id );
+            const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
             const int dist = DescriptorDistance(dL , dR);   
             
             ////////////////////////////
             ////////// TO DO ///////////
             ////////////////////////////
             // Testare se il valore dist è corretto ed è uguale a quello generato sulla CPU
-            ////////////////////////////
+            // Capire discrepanza tra il valore di N[GPU] e N[CPU] perchè è diverso??? 32 vs 2000
+            //////////////////////////// 
             ////////// TO DO ///////////
             ////////////////////////////
 
-
-            /*if(b_id == 130 && id == 10){     //TESTING
-                printf("[GPU]dist of element [%d][%d] = %d \n" , b_id , id , dist);
-            }*/
+            printf("[GPU]dist of element iL[%lu] iR[%lu] : %d \n" , b_id , iR , dist); 
 
             /*                               CONTINUE FROM HERE...
             if(dist<bestDist)
@@ -133,8 +131,8 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     cv::KeyPoint *mvKeys_gpu;
     cv::KeyPoint *mvKeysRight_gpu;
     float *mvInvScaleFactors_gpu;
-    float *mDescriptorsRight_gpu;
-    float *mDescriptors_gpu;
+    unsigned char *mDescriptorsRight_gpu;
+    unsigned char *mDescriptors_gpu;
     float *mvScaleFactors_gpu;
     size_t *size_refer_gpu;                  // Vettore che associa ogni elemento N al numero di colonne del vettore vRowIndices[N]
     size_t *incremental_size_refer_gpu;      // Vettore che associa ogni elemento N alla somma del numero di colonne del vettore fino a vRowIndices[N]
@@ -143,6 +141,7 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     int num_elements_right = mDescriptorsRight.total();
     unsigned total_element=0;
     unsigned nRows = vRowIndices.size();
+    unsigned N = mDescriptors.cols;
 
     
     // Copia parametri input in memoria costante
@@ -157,10 +156,10 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     cudaMemcpy(mvKeys_gpu, mvKeys.data(), sizeof(cv::KeyPoint) * mvKeys.size(), cudaMemcpyHostToDevice); 
     cudaMalloc(&mvKeysRight_gpu , sizeof(cv::KeyPoint) * mvKeysRight.size() );
     cudaMemcpy(mvKeysRight_gpu, mvKeysRight.data(), sizeof(cv::KeyPoint) * mvKeysRight.size(), cudaMemcpyHostToDevice); 
-    cudaMalloc(&mDescriptors_gpu, num_elements_left * sizeof(float));
-    cudaMemcpy(mDescriptors_gpu, (float*)mDescriptors.data, num_elements_left * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMalloc(&mDescriptorsRight_gpu, num_elements_right * sizeof(float));
-    cudaMemcpy(mDescriptorsRight_gpu, (float*)mDescriptorsRight.data, num_elements_right * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMalloc(&mDescriptors_gpu, num_elements_left * sizeof(unsigned char));
+    cudaMemcpy(mDescriptors_gpu, (unsigned char*)mDescriptors.data, num_elements_left * sizeof(unsigned char), cudaMemcpyHostToDevice);
+    cudaMalloc(&mDescriptorsRight_gpu, num_elements_right * sizeof(unsigned char));
+    cudaMemcpy(mDescriptorsRight_gpu, (unsigned char*)mDescriptorsRight.data, num_elements_right * sizeof(unsigned char), cudaMemcpyHostToDevice);
     cudaMalloc(&mvInvScaleFactors_gpu , sizeof(float) * mvInvScaleFactors.size() );
     cudaMemcpy(mvInvScaleFactors_gpu, mvInvScaleFactors.data(), sizeof(float) * mvInvScaleFactors.size(), cudaMemcpyHostToDevice); 
     cudaMalloc(&mvScaleFactors_gpu , sizeof(float) * mvScaleFactors.size() );
@@ -189,12 +188,8 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     cudaMalloc(&vRowIndices_gpu , sizeof(size_t) * total_element );
     cudaMemcpy(vRowIndices_gpu, vRowIndices_temp.data(), sizeof(size_t) * total_element, cudaMemcpyHostToDevice); 
 
-    
-    /*
-    printf("Test on cpuluka: (%u) \n" , total_element);
-    for(int i=0 ; i<total_element ; i++){
-        printf("%d : %zu \n" , i , vRowIndices_temp[i]);
-    }*/
+
+    printf(" N[GPU] = %u\n" , N );  // TODO capire perchè c'è discrepanza    
 
     printf("Sto per lanciare il test della GPU by Luca Anzald: \n");
     //Ogni blocco rappresenta una riga di VrowIndices e ogni thread le varie colonne
