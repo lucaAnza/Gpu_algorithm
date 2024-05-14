@@ -1,18 +1,25 @@
-#Questo script se avviato nella cartella principale /ORB_SLAM3
-#Esegue il programma ed avvia l'esempio n.7
+command="nvidia-smi"
+match_str="NVIDIA-SMI"
+res=$($command | grep -o $match_str)
 
+stringa1="a"
+stringa2="b"
 
-arg="$1"
+# Confronta le stringhe
+if [ "$res" = "$match_str" ]; then
+  cd build
+    cmake .. -DCMAKE_BUILD_TYPE=Release
 
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
+    make -j4
 
-if [ "$arg" -eq 1 ]; then
-    make
+    cd ..
+
+    Examples/Stereo/stereo_kitti Vocabulary/ORBvoc.txt Examples/Stereo/KITTI04-12.yaml ~/Desktop/dataset/sequences/07
 else
-    make -j16
+  echo "Errore: possibili problemi con la Gpu!"
+  echo "Log error : "
+  $command
 fi
 
-cd ..
 
-Examples/Stereo/stereo_kitti Vocabulary/ORBvoc.txt Examples/Stereo/KITTI04-12.yaml ~/Desktop/dataset/sequences/07
+
