@@ -118,3 +118,15 @@ This pgm shows the use of atomicCas.
 - On most executions, you would see the output of the first if.
 - And could happened that thread1 executes the third if.
 
+
+### Warp votes.cu
+
+This pgw shows the use of warp votes. The main functions are:
+
+- `__all(predicate)` → True if all warp threads satisfy the predicate.
+- `__any(predicate)` → True if at least one warp satisfy the predicate.
+- `__ballot(predicate)` → Return a 32bit integer (every bit rappresent true/false of a warp):
+  - Example of __ballot int `<001000000010010111110000000100101>`
+
+
+
