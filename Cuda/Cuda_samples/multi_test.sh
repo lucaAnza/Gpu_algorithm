@@ -1,4 +1,11 @@
-for ((i=1; i<=10; i++))
-do
-  ./a.out
-done
+echo "Listing periferics :"
+
+lspci | grep VGA
+
+echo "Info on SCHEDA-VIDEO + Driver info : "
+
+glxinfo | grep "OpenGL vendor"
+
+echo "Status SCHEDA NVIDIA : "
+
+nvidia-smi
