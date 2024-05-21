@@ -26,9 +26,6 @@ And explanation of the iterative algoritmh.
 
 <img src="img/best_candidate_explain.png" width=50% alt=""> </img>
 
-
-
-
 ### opt1_simulation.cu
 
 #### Simulazione
@@ -119,12 +116,3 @@ int ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b){
         return dist;
 }
 ```
-
-
-
-
-
-
-
-
-
