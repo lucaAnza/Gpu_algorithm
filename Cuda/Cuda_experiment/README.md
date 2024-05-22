@@ -36,16 +36,19 @@ Come passo intermedio, creo un programma più semplice ma in parte simile al pro
 
 - Le strutture dati utilizzate possono essere molto diverse dall'esempio.
 - Il procedimento è molto più complesso.
-- Questo è uno schema ad "altissimo" livello.ù
+- Questo è uno schema ad "altissimo" livello.
 
 <br><br>
 
 ### opt1.cu
 
 
-#### Obiettivo ottimizazione
+#### Possibili ottimizazioni
 
-<img src="img/opt1.png" width=50% alt=""> </img>
+Version1
+<img src="img/GPU_opt1.png" width=50% alt="V1"> </img><br>
+
+<img src="img/GPU_opt2.png" width=50% alt="V2"> </img><br>
 
 #### Steps
 
