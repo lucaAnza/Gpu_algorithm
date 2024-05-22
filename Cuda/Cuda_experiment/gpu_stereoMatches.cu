@@ -16,6 +16,7 @@
 #include <opencv2/core/core.hpp>
 
 #define VROWINDICES_MAX_COL 120  //TODO -> Può trasformarsi in una variabile ed essere la massima size delle righe di vrowindices.
+#define MDESCRIPTOR_MAX_COL 32
 
 //Allocazione memoria costante in Gpu                      
 __constant__  float minZ_gpu;   
@@ -23,6 +24,7 @@ __constant__  float minD_gpu;
 __constant__  float maxD_gpu;  
 __constant__  int TH_HIGH_gpu;
 __constant__  int mDescriptors_gpu_cols;
+__constant__  int partition_factor;      //each block analize <partition_factor> line element of mDescriptor
 
 
 // Funzione che calcola la distanza tra 2 vettori
@@ -53,7 +55,14 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
     size_t num_elem = size_refer_gpu[b_id];
     size_t index;
 
-    if(id < size_refer_gpu[b_id]){
+    if(  (id < size_refer_gpu[b_id]) ){
+
+        /*
+        for(int i=0 ; i<partition_factor ; i++){
+            // TODO -> fare in modo di non lasciare fuori gli ultimi elementi
+        }
+        */
+
         index = ((incremental_size_refer_gpu[b_id] - num_elem) + id);
 
         //Pre-For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,7 +150,7 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     int num_elements_right = mDescriptorsRight.total();
     unsigned total_element=0;
     unsigned nRows = vRowIndices.size();
-    unsigned N = mDescriptors.cols;
+    unsigned N = mvKeys.size();
 
     
     // Copia parametri input in memoria costante
@@ -150,6 +159,8 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     cudaMemcpyToSymbol(maxD_gpu, &maxD, 1 * sizeof(float));
     cudaMemcpyToSymbol(TH_HIGH_gpu, &TH_HIGH, 1 * sizeof(int));
     cudaMemcpyToSymbol(mDescriptors_gpu_cols, &mDescriptors.cols, 1 * sizeof(int));
+    int part_const = (int)N/nRows;
+    cudaMemcpyToSymbol(partition_factor, &part_const, 1 * sizeof(int));
 
     //Allocazione memoria per array dinamici
     cudaMalloc(&mvKeys_gpu , sizeof(cv::KeyPoint) * mvKeys.size() );
@@ -188,8 +199,7 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     cudaMalloc(&vRowIndices_gpu , sizeof(size_t) * total_element );
     cudaMemcpy(vRowIndices_gpu, vRowIndices_temp.data(), sizeof(size_t) * total_element, cudaMemcpyHostToDevice); 
 
-
-    printf(" N[GPU] = %u\n" , N );  // TODO capire perchè c'è discrepanza    
+    printf("numero colonne di mDescriptor : %d\n" , mDescriptors.cols);
 
     printf("Sto per lanciare il test della GPU by Luca Anzald: \n");
     //Ogni blocco rappresenta una riga di VrowIndices e ogni thread le varie colonne
@@ -215,4 +225,5 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
 void gpu_stereoMatches(std::vector<cv::KeyPoint> mvKeys , float minZ , float minD , float maxD , int TH_HIGH , cv::Mat mDescriptorsRight , 
                         vector<float> mvInvScaleFactors , ORBextractor* mpORBextractorLeft , vector<float> mvScaleFactors ){
 */
+
 

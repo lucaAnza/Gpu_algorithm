@@ -1,6 +1,5 @@
 void Frame::ComputeStereoMatches()
 {   
-
     mvuRight = vector<float>(N,-1.0f);
     mvDepth = vector<float>(N,-1.0f);
 
@@ -44,7 +43,8 @@ void Frame::ComputeStereoMatches()
     const float minD = 0;
     const float maxD = mbf/minZ;
 
-    printf(" N[CPU] = %u" , N);
+    printf(" N[CPU] = %u\n" , N);
+    printf(" mvKeys.size()->N[CPU] = %u\n" , N);
 
     // Chiama la funzione parallela di stereo matching     (luke_add)
     //TODO -> aggiungere vRowIndices ai parametri di ingresso!

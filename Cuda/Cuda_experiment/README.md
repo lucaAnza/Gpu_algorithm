@@ -40,15 +40,14 @@ Come passo intermedio, creo un programma più semplice ma in parte simile al pro
 
 <br><br>
 
-### opt1.cu
+### Ottimizazione1 - ComputeStereoMatches
 
+<img src="img/Legend_opt.png" width=10% alt="V1"> </img><br>
 
-#### Possibili ottimizazioni
+#### Version1
 
-Version1
-<img src="img/GPU_opt1.png" width=50% alt="V1"> </img><br>
+<img src="img/GPU_opt1_v1.png" width=30% alt="V1"> </img><br>
 
-<img src="img/GPU_opt2.png" width=50% alt="V2"> </img><br>
 
 #### Steps
 
