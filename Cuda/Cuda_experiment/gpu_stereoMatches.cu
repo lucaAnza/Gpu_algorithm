@@ -14,9 +14,11 @@
 #include "gpu_stereoMatches.h"
 #include <vector>
 #include <opencv2/core/core.hpp>
+#include <cublas_v2.h>
 
 #define VROWINDICES_MAX_COL 120  //TODO -> Può trasformarsi in una variabile ed essere la massima size delle righe di vrowindices.
 #define MDESCRIPTOR_MAX_COL 32
+#define MAX_PARTITION_FACTOR 7
 
 //Allocazione memoria costante in Gpu                      
 __constant__  float minZ_gpu;   
@@ -55,6 +57,7 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
     size_t num_elem_line = size_refer_gpu[b_id];
+    __shared__ int minium_dist[MAX_PARTITION_FACTOR]; 
 
     //DEBUG : printf("size_refer_gpu[b_id=%lu]; %lu %lu \n" , b_id ,num_elem_line , size_refer_gpu[b_id]);
 
@@ -67,6 +70,8 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
 
         for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
             
+            minium_dist[partition_i] = __INT_MAX__;
+
             //Pre-For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
             const cv::KeyPoint &kpL = mvKeys_gpu[iL];
             const int &levelL = kpL.octave;
@@ -113,17 +118,38 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
                 const unsigned char *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * iL );
                 const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
                 const int dist = DescriptorDistance(dL , dR);   
+                atomicMin( &minium_dist[iL] , dist);          // TODO : Check if it is correct
                 
-                printf("{%d}[GPU]dist of element iL[%d] iR[%lu] : %d \n" , time_calls_gpu , iL , iR , dist); 
+                 __syncthreads(); // Waiting that all thread of the block calculate the distance
 
-                //CONTINUE FROM HERE...
-                /*                               
+                printf("{%d} [GPU] Distanza minimima della linea iL(%d) = %d\n" , time_calls_gpu , iL , minium_dist[iL]);
+
+                
+                
+                //printf("{%d}[GPU]dist of element iL[%d] iR[%lu] : %d \n" , time_calls_gpu , iL , iR , dist); 
+
+                /*     
+
+                A   A   A   A 
+                |   |   |   |
+                |   |   |   |
+                |   |   |   | 
+                
                 if(dist<bestDist)
                 {
                     bestDist = dist;
                     bestIdxR = iR;
                 }
+                
+                //CONTINUE FROM HERE...
+
                 */
+
+                
+
+                
+                
+                
             }
         }
         
@@ -212,7 +238,7 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
     cudaMemcpy(vRowIndices_gpu, vRowIndices_temp.data(), sizeof(size_t) * total_element, cudaMemcpyHostToDevice); 
 
     printf("Sto per lanciare il test della GPU by Luca Anzald: \n");
-    cuda_test<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu );
+    //cuda_test<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu );
     cudaDeviceSynchronize();
 
     //Deallocazione della memoria

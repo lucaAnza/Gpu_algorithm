@@ -44,9 +44,13 @@ Come passo intermedio, creo un programma più semplice ma in parte simile al pro
 
 <img src="img/Legend_opt.png" width=10% alt="V1"> </img><br>
 
-#### Version1
+#### Find Distance
 
-<img src="img/GPU_opt1_v1.png" width=30% alt="V1"> </img><br>
+<img src="img/GPU_opt1_findDistance.png" width=40% alt="find distance"> </img><br><br>
+
+#### Find Minium Distance
+
+<img src="img/GPU_opt1_findMinDistance.png" width=40% alt="find min distance"> </img><br>
 
 
 #### Steps

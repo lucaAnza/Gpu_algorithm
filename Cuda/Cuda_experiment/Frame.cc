@@ -86,9 +86,8 @@ void Frame::ComputeStereoMatches()
             
             const size_t iR = vCandidates[iC];     // iR assume l'indice di ogni candidato
 
-            //TODO -> SISTEMARE IL CICLO SOTTO
 
-            printf("{%d}[CPU]element of mvKeys[iL].pt.y(vL) : %f ,  iL[%d] iR[%lu] \n" , time_calls , mvKeys[iL].pt.y  ,iL , iR ); 
+            //printf("{%d}[CPU]element of mvKeys[iL].pt.y(vL) : %f ,  iL[%d] iR[%lu] take index : %lu  \n" , time_calls , mvKeys[iL].pt.y  ,iL , iR , iC ); 
             const cv::KeyPoint &kpR = mvKeysRight[iR];   // kpR assume il valore del punto corrispondente al candidato
 
             if(kpR.octave<levelL-1 || kpR.octave>levelL+1)  // kpR.octave rappresenta il livello piramidale (scala) del punto a DX, levelL di quello a SX
@@ -110,6 +109,8 @@ void Frame::ComputeStereoMatches()
                 }
             }
         }
+
+        printf("{%d} [CPU] Distanza minimima della linea iL(%d) = %d\n" , time_calls , iL , bestDist);
 
         // Subpixel match by correlation
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
