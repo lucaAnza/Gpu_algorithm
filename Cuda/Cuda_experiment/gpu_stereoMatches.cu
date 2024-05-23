@@ -25,6 +25,8 @@ __constant__  float maxD_gpu;
 __constant__  int TH_HIGH_gpu;
 __constant__  int mDescriptors_gpu_cols;
 __constant__  int partition_factor;      //each block analize <partition_factor> line element of mDescriptor
+__constant__  int mDescriptors_gpu_lines;    
+__constant__  int time_calls_gpu;   // count of number of call by ComputeStereoMatches   
 
 
 // Funzione che calcola la distanza tra 2 vettori
@@ -52,80 +54,80 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
     
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
-    size_t num_elem = size_refer_gpu[b_id];
+    size_t num_elem_line = size_refer_gpu[b_id];
     size_t index;
 
-    if(  (id < size_refer_gpu[b_id]) ){
 
-        /*
-        for(int i=0 ; i<partition_factor ; i++){
-            // TODO -> fare in modo di non lasciare fuori gli ultimi elementi
-        }
-        */
-
-        index = ((incremental_size_refer_gpu[b_id] - num_elem) + id);
-
-        //Pre-For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
-        const cv::KeyPoint &kpL = mvKeys_gpu[b_id];
-        const int &levelL = kpL.octave;
-        const float &vL = kpL.pt.y;
-        const float &uL = kpL.pt.x;
-        
-        
-        //const vector<size_t> &vCandidates = vRowIndices_gpu[vL];      //TODELETE  
-
-        //if(vCandidates.empty())                                       //TODELETE  
-        //    return;  // Terminate thread                              //TODELETE
+    if(  (id < num_elem_line) ){
 
         
-        const float minU = uL-maxD_gpu;
-        const float maxU = uL-minD_gpu;
+        //printf("ID(%lu) < num_elem(%lu) of line %lu  mDescript_lines(%d) part_Fact(%d)\n" , id , num_elem_line , b_id , mDescriptors_gpu_lines , partition_factor);
 
-        if(maxU<0)
-            return;
+        int begin = (int)b_id * partition_factor;
 
-        int bestDist = TH_HIGH_gpu;
-        size_t bestIdxR = 0;
-
-        //const cv::Mat &dL = mDescriptors_gpu.row(iL);   // TODELETE
-
-        //For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
-        const size_t iR = vRowIndices_gpu[incremental_size_refer_gpu[(int)vL] - size_refer_gpu[(int)vL] + id] ;
-        const cv::KeyPoint &kpR = mvKeysRight_gpu[iR];   
-
-        if(kpR.octave<levelL-1 || kpR.octave>levelL+1)  
-            return;
-        
-        const float &uR = kpR.pt.x;  
-
-        if(uR>=minU && uR<=maxU) {   // Controllo se la x del keypointCandidatoDX sta in un range
-        
-            //const cv::Mat &dR = mDescriptorsRight.row(iR);     //TODELETE
-
-            const unsigned char *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * b_id );
-            const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
-            const int dist = DescriptorDistance(dL , dR);   
+        for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
             
-            ////////////////////////////
-            ////////// TO DO ///////////
-            ////////////////////////////
-            // Testare se il valore dist è corretto ed è uguale a quello generato sulla CPU
-            // Capire discrepanza tra il valore di N[GPU] e N[CPU] perchè è diverso??? 32 vs 2000
-            //////////////////////////// 
-            ////////// TO DO ///////////
-            ////////////////////////////
+            //printf("iL : %d\n" ,  iL);
 
-            printf("[GPU]dist of element iL[%lu] iR[%lu] : %d \n" , b_id , iR , dist); 
+            //Pre-For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
+            const cv::KeyPoint &kpL = mvKeys_gpu[iL];
+            const int &levelL = kpL.octave;
+            const float &vL = kpL.pt.y;
+            const float &uL = kpL.pt.x;
 
-            /*                               CONTINUE FROM HERE...
-            if(dist<bestDist)
-            {
-                bestDist = dist;
-                bestIdxR = iR;
+            
+            //const vector<size_t> &vCandidates = vRowIndices_gpu[vL];      //TODELETE  
+
+            //if(vCandidates.empty())                                       //TODELETE  
+            //    return;  // Terminate thread                              //TODELETE
+
+            
+            const float minU = uL-maxD_gpu;
+            const float maxU = uL-minD_gpu;
+
+            if(maxU<0)
+                return;
+
+            int bestDist = TH_HIGH_gpu;
+            size_t bestIdxR = 0;
+
+            //const cv::Mat &dL = mDescriptors_gpu.row(iL);   // TODELETE
+
+            //For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
+            const size_t iR = vRowIndices_gpu[incremental_size_refer_gpu[(int)vL] - size_refer_gpu[(int)vL] + (id + partition_i)] ;
+            const cv::KeyPoint &kpR = mvKeysRight_gpu[iR];
+
+            printf("{%d}[GPU]element of mvKeys[iL].pt.y(vL) : %f ,  iL[%d] iR[%lu] \n" , time_calls_gpu , mvKeys_gpu[iL].pt.y  ,iL , iR ); 
+
+            /////// TODO /////////
+            // Sistemare iR output del printf sopra!!!  ///
+            /////// TODO /////////
+
+
+            if(kpR.octave<levelL-1 || kpR.octave>levelL+1)  
+                return;
+            
+            const float &uR = kpR.pt.x;  
+
+            if(uR>=minU && uR<=maxU) {   // Controllo se la x del keypointCandidatoDX sta in un range
+            
+                //const cv::Mat &dR = mDescriptorsRight.row(iR);     //TODELETE
+
+                const unsigned char *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * iL );
+                const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
+                const int dist = DescriptorDistance(dL , dR);   
+                
+                //printf("{%d}[GPU]dist of element iL[%d] iR[%lu] : %d \n" , time_calls_gpu , iL , iR , dist); 
+
+                /*                               CONTINUE FROM HERE...
+                if(dist<bestDist)
+                {
+                    bestDist = dist;
+                    bestIdxR = iR;
+                }
+                */
             }
-            */
         }
-        
         
 
     }
@@ -134,7 +136,7 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
 }
 
 
-void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
+void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
                       std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer ){
 
     cv::KeyPoint *mvKeys_gpu;
@@ -159,8 +161,11 @@ void gpu_stereoMatches(std::vector<std::vector<size_t>> vRowIndices , std::vecto
     cudaMemcpyToSymbol(maxD_gpu, &maxD, 1 * sizeof(float));
     cudaMemcpyToSymbol(TH_HIGH_gpu, &TH_HIGH, 1 * sizeof(int));
     cudaMemcpyToSymbol(mDescriptors_gpu_cols, &mDescriptors.cols, 1 * sizeof(int));
-    int part_const = (int)N/nRows;
+    int part_const = ((int)N/nRows) + 1;
     cudaMemcpyToSymbol(partition_factor, &part_const, 1 * sizeof(int));
+    cudaMemcpyToSymbol(mDescriptors_gpu_lines, &num_elements_left, 1 * sizeof(int));
+    cudaMemcpyToSymbol(time_calls_gpu, &time_calls, 1 * sizeof(int));
+    
 
     //Allocazione memoria per array dinamici
     cudaMalloc(&mvKeys_gpu , sizeof(cv::KeyPoint) * mvKeys.size() );

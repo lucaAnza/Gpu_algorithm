@@ -1,5 +1,9 @@
+int time_calls = 0;
+
 void Frame::ComputeStereoMatches()
-{   
+{      
+    time_calls++;
+
     mvuRight = vector<float>(N,-1.0f);
     mvDepth = vector<float>(N,-1.0f);
 
@@ -43,14 +47,9 @@ void Frame::ComputeStereoMatches()
     const float minD = 0;
     const float maxD = mbf/minZ;
 
-    printf(" N[CPU] = %u\n" , N);
-    printf(" mvKeys.size()->N[CPU] = %u\n" , N);
 
     // Chiama la funzione parallela di stereo matching     (luke_add)
-    //TODO -> aggiungere vRowIndices ai parametri di ingresso!
-    gpu_stereoMatches( vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer );
-    //gpu_stereoMatches( mvKeys , minZ , minD , maxD , ORBmatcher::TH_HIGH , mDescriptorsRight , mvInvScaleFactors , mpORBextractorLeft , mvScaleFactors );
-
+    gpu_stereoMatches( time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer );
 
 
     // For each left keypoint search a match in the right image  -> I candidati possibili sono nel vettore "vRowIndices -> vCandidates"
@@ -84,7 +83,12 @@ void Frame::ComputeStereoMatches()
         // Compare descriptor to right keypoints
         for(size_t iC=0; iC<vCandidates.size(); iC++)           // Iterazione dei punti chiave a DX (Candidati)
         {
+            
             const size_t iR = vCandidates[iC];     // iR assume l'indice di ogni candidato
+
+            //TODO -> SISTEMARE IL CICLO SOTTO
+
+            printf("{%d}[CPU]element of mvKeys[iL].pt.y(vL) : %f ,  iL[%d] iR[%lu] \n" , time_calls , mvKeys[iL].pt.y  ,iL , iR ); 
             const cv::KeyPoint &kpR = mvKeysRight[iR];   // kpR assume il valore del punto corrispondente al candidato
 
             if(kpR.octave<levelL-1 || kpR.octave>levelL+1)  // kpR.octave rappresenta il livello piramidale (scala) del punto a DX, levelL di quello a SX
@@ -97,7 +101,7 @@ void Frame::ComputeStereoMatches()
                 const cv::Mat &dR = mDescriptorsRight.row(iR);  
                 const int dist = ORBmatcher::DescriptorDistance(dL,dR);   // restituisce la distanza tra riga DX e SX (DA APPROFONDIRE)
 
-                printf("[CPU]dist of element iL[%d] iR[%lu] : %d \n" , iL , iR , dist); 
+                //printf("{%d}[CPU]dist of element iL[%d] iR[%lu] : %d \n" , time_calls , iL , iR , dist); 
 
                 if(dist<bestDist)
                 {
