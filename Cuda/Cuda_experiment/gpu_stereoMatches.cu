@@ -52,14 +52,14 @@ __device__ int DescriptorDistance(const unsigned char *a, const unsigned char* b
 
 
 __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu ,  unsigned char   * mDescriptors_gpu , unsigned char *mDescriptorsRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu 
-                        , size_t *size_refer_gpu  , size_t *incremental_size_refer_gpu) {
+                        , size_t *size_refer_gpu  , size_t *incremental_size_refer_gpu , int *minium_dist_gpu ) {
     
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
     size_t num_elem_line = size_refer_gpu[b_id];
     __shared__ int minium_dist[MAX_PARTITION_FACTOR]; 
 
-    //DEBUG : printf("size_refer_gpu[b_id=%lu]; %lu %lu \n" , b_id ,num_elem_line , size_refer_gpu[b_id]);
+    //printf("[GPU] , size_refer_gpu[b_id=%lu]; %lu %lu \n" , b_id ,num_elem_line , size_refer_gpu[b_id]);    //DEBUG 
 
     if(  (id < num_elem_line) ){
 
@@ -70,7 +70,7 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
 
         for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
             
-            minium_dist[partition_i] = __INT_MAX__;
+            minium_dist[partition_i] = TH_HIGH_gpu;    // Serve ancora?
 
             //Pre-For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
             const cv::KeyPoint &kpL = mvKeys_gpu[iL];
@@ -117,16 +117,17 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
 
                 const unsigned char *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * iL );
                 const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
-                const int dist = DescriptorDistance(dL , dR);   
-                atomicMin( &minium_dist[iL] , dist);          // TODO : Check if it is correct
+                const int dist = DescriptorDistance(dL , dR); 
                 
-                 __syncthreads(); // Waiting that all thread of the block calculate the distance
+                //atomicMin( &minium_dist[partition_i] , dist);          // TODO : Check if it is correct
+                __syncthreads(); // Waiting that all thread of the block calculate the distance
+                 
+                //minium_dist_gpu[iL] = dist;
+                //printf("{%d} [GPU] Distanza minimima della linea iL(%d) = %d  clt-bID(%lu)tID(%lu)\n" , time_calls_gpu , iL , minium_dist[partition_i] , b_id , id);
 
-                printf("{%d} [GPU] Distanza minimima della linea iL(%d) = %d\n" , time_calls_gpu , iL , minium_dist[iL]);
-
                 
                 
-                //printf("{%d}[GPU]dist of element iL[%d] iR[%lu] : %d \n" , time_calls_gpu , iL , iR , dist); 
+                
 
                 /*     
 
@@ -145,6 +146,7 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
 
                 */
 
+               printf("{%d}[GPU]dist of element iL[%d] iR[%lu] : %d \n" , time_calls_gpu , iL , iR , dist); 
                 
 
                 
@@ -161,7 +163,7 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
 
 
 void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
-                      std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer ){
+                      std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer){
 
     cv::KeyPoint *mvKeys_gpu;
     cv::KeyPoint *mvKeysRight_gpu;
@@ -177,7 +179,7 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
     unsigned total_element=0;
     unsigned nRows = vRowIndices.size();
     unsigned N = mvKeys.size();
-
+    int *minium_dist_gpu;
     
     // Copia parametri input in memoria costante
     cudaMemcpyToSymbol(minZ_gpu, &minZ, 1 * sizeof(float));
@@ -227,19 +229,33 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
     }
 
     //printf of size_refer and incremental_size_refer
-    /*
+    
     for(int i=0 ; i<vRowIndices.size() ; i++){
         printf("%lu \t %lu\n" , size_refer[i] , incremental_size_refer[i]);
-    }*/
+    }
 
     cudaMalloc(&incremental_size_refer_gpu , sizeof(size_t) * incremental_size_refer.size() );
     cudaMemcpy(incremental_size_refer_gpu, incremental_size_refer.data(), sizeof(size_t) * size_refer.size(), cudaMemcpyHostToDevice); 
     cudaMalloc(&vRowIndices_gpu , sizeof(size_t) * total_element );
     cudaMemcpy(vRowIndices_gpu, vRowIndices_temp.data(), sizeof(size_t) * total_element, cudaMemcpyHostToDevice); 
+    
+
+    //Test - TODELETE
+    cudaMalloc(&minium_dist_gpu , sizeof(int) * N);
+
 
     printf("Sto per lanciare il test della GPU by Luca Anzald: \n");
-    //cuda_test<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu );
+    cuda_test<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , minium_dist_gpu );
     cudaDeviceSynchronize();
+
+    //Test -TODELETE
+    int distanzaMinime[N];
+    cudaMemcpy(distanzaMinime, minium_dist_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
+    printf("{%d}Stampa delle distanze minime : \n" , time_calls);
+    for(int i=0 ; i<N ; i++){
+        printf("{%d} %d : %d\n" , time_calls ,  i , distanzaMinime[i]);
+    }
+
 
     //Deallocazione della memoria
     cudaFree(mvKeys_gpu);

@@ -100,7 +100,7 @@ void Frame::ComputeStereoMatches()
                 const cv::Mat &dR = mDescriptorsRight.row(iR);  
                 const int dist = ORBmatcher::DescriptorDistance(dL,dR);   // restituisce la distanza tra riga DX e SX (DA APPROFONDIRE)
 
-                //printf("{%d}[CPU]dist of element iL[%d] iR[%lu] : %d \n" , time_calls , iL , iR , dist); 
+                printf("{%d}[CPU]dist of element iL[%d] iR[%lu] : %d \n" , time_calls , iL , iR , dist); 
 
                 if(dist<bestDist)
                 {
@@ -110,7 +110,7 @@ void Frame::ComputeStereoMatches()
             }
         }
 
-        printf("{%d} [CPU] Distanza minimima della linea iL(%d) = %d\n" , time_calls , iL , bestDist);
+        //printf("{%d} [CPU] Distanza minimima della linea iL(%d) = %d\n" , time_calls , iL , bestDist);
 
         // Subpixel match by correlation
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
