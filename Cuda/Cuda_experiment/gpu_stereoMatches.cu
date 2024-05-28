@@ -29,6 +29,7 @@ __constant__  int mDescriptors_gpu_cols;
 __constant__  int partition_factor;      //each block analize <partition_factor> line element of mDescriptor
 __constant__  int mDescriptors_gpu_lines;    
 __constant__  int time_calls_gpu;   // count of number of call by ComputeStereoMatches   
+__constant__  int thOrbDist_gpu;   // count of number of call by ComputeStereoMatches  
 
 
 // Funzione che calcola la distanza tra 2 vettori
@@ -53,11 +54,10 @@ __device__ int DescriptorDistance(const unsigned char *a, const unsigned char* b
 ///////////////////
 //////////////////
 /////////////////
-////// TO DO//////  -------->  Capire perchè c'è una differenza tra minium_dist[GPU] e minium_dist[CPU] (la differenza è solo in alcuni elementi) -> Dubbio errore nei filtri 
-////////////////                                                                                                perchè non fanno eseguire syncthread oppure errore nei valori uR,MaxU...
+////// TO DO//////  -------->  Capire perchè c'è una differenza tra minium_dist[GPU] e minium_dist[CPU] (la differenza è solo in alcuni elementi) -> 
 ///////////////////
 ///////////////////
-//////////////////777
+////////////////////
 
 
 
@@ -129,15 +129,12 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
                 const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
                 const int dist = DescriptorDistance(dL , dR); 
                 
-                __syncthreads(); // Waiting that all thread of the block calculate the distance
+                
                 atomicMin( &minium_dist[partition_i] , dist);          // TODO : Check if it is correct
-                __syncthreads(); // Waiting that all thread of the block calculate the distance
-                minium_dist_gpu[iL] = minium_dist[partition_i];
-
-
-
                 //printf("{%d} [GPU] Distanza minimima della linea iL(%d) = %d  clt-bID(%lu)tID(%lu)\n" , time_calls_gpu , iL , minium_dist[partition_i] , b_id , id);
-
+                
+                __syncthreads() // NOT WORKING TRY TO FIX!
+                minium_dist_gpu[iL] = minium_dist[partition_i];     // NEED TO SYNCHRONIZE
                 
                 
                 
@@ -158,26 +155,17 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
                 //CONTINUE FROM HERE...
 
                 */
-
-                if(iL < 100)
-                    printf("{%d}[GPU]dist of element iL[%d] iR[%lu] : %d   [num-elem-of-lines-%d=%lu] \n" , time_calls_gpu , iL , iR , dist, (int)vL ,num_elem_line); 
                 
-
+                //printf("{%d}[GPU]dist of element iL[%d] iR[%lu] : %d   [num-elem-of-lines-%d=%lu] min_dist:%d \n" , time_calls_gpu , iL , iR , dist, (int)vL ,num_elem_line , minium_dist[partition_i]); 
                 
-                
-                
+   
             }
         }
     }
-        
-
-    
-
-
 }
 
 
-void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
+void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist ,cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
                       std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer){
 
     cv::KeyPoint *mvKeys_gpu;
@@ -206,6 +194,7 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
     cudaMemcpyToSymbol(partition_factor, &part_const, 1 * sizeof(int));
     cudaMemcpyToSymbol(mDescriptors_gpu_lines, &num_elements_left, 1 * sizeof(int));
     cudaMemcpyToSymbol(time_calls_gpu, &time_calls, 1 * sizeof(int));
+    cudaMemcpyToSymbol(thOrbDist_gpu, &thOrbDist, 1 * sizeof(int));
     
 
     //Allocazione memoria per array dinamici
@@ -264,8 +253,12 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
     cudaDeviceSynchronize();
 
     //Test -TODELETE
+    printf("partition_factor :%d , thorbdist : %d \n" , part_const , thOrbDist);
     int distanzaMinime[N];
     cudaMemcpy(distanzaMinime, minium_dist_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+
+    
     printf("{%d}Stampa delle distanze minime : \n" , time_calls);
     for(int i=0 ; i<N ; i++){
         printf("{%d} %d : %d\n" , time_calls ,  i , distanzaMinime[i]);

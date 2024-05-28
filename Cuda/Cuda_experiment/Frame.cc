@@ -49,7 +49,7 @@ void Frame::ComputeStereoMatches()
 
 
     // Chiama la funzione parallela di stereo matching     (luke_add)
-    gpu_stereoMatches( time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer );
+    gpu_stereoMatches( time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer );
 
 
     // For each left keypoint search a match in the right image  -> I candidati possibili sono nel vettore "vRowIndices -> vCandidates"
