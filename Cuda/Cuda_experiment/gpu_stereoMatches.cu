@@ -50,55 +50,65 @@ __device__ int DescriptorDistance(const unsigned char *a, const unsigned char* b
 }
 
 
+///////////////////
+//////////////////
+/////////////////
+////// TO DO//////  -------->  Capire perchè c'è una differenza tra minium_dist[GPU] e minium_dist[CPU] (la differenza è solo in alcuni elementi) -> Dubbio errore nei filtri 
+////////////////                                                                                                perchè non fanno eseguire syncthread oppure errore nei valori uR,MaxU...
+///////////////////
+///////////////////
+//////////////////777
+
+
 
 __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu ,  unsigned char   * mDescriptors_gpu , unsigned char *mDescriptorsRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu 
                         , size_t *size_refer_gpu  , size_t *incremental_size_refer_gpu , int *minium_dist_gpu ) {
     
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
-    size_t num_elem_line = size_refer_gpu[b_id];
     __shared__ int minium_dist[MAX_PARTITION_FACTOR]; 
 
     //printf("[GPU] , size_refer_gpu[b_id=%lu]; %lu %lu \n" , b_id ,num_elem_line , size_refer_gpu[b_id]);    //DEBUG 
 
-    if(  (id < num_elem_line) ){
+    //printf("ID(%lu) < num_elem(%lu) of line %lu  mDescript_lines(%d) part_Fact(%d)\n" , id , num_elem_line , b_id , mDescriptors_gpu_lines , partition_factor);
+
+    int begin = (int)b_id * partition_factor;
+
+    for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
+        
+        //Pre-For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
+        const cv::KeyPoint &kpL = mvKeys_gpu[iL];
+        const int &levelL = kpL.octave;
+        const float &vL = kpL.pt.y;
+        const float &uL = kpL.pt.x;
 
         
-        //printf("ID(%lu) < num_elem(%lu) of line %lu  mDescript_lines(%d) part_Fact(%d)\n" , id , num_elem_line , b_id , mDescriptors_gpu_lines , partition_factor);
+        //const vector<size_t> &vCandidates = vRowIndices_gpu[vL];      //TODELETE  
 
-        int begin = (int)b_id * partition_factor;
+        //if(vCandidates.empty())                                       //TODELETE  
+        //    return;  // Terminate thread                              //TODELETE
 
-        for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
-            
-            minium_dist[partition_i] = TH_HIGH_gpu;    // Serve ancora?
+        
+        const float minU = uL-maxD_gpu;
+        const float maxU = uL-minD_gpu;
 
-            //Pre-For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
-            const cv::KeyPoint &kpL = mvKeys_gpu[iL];
-            const int &levelL = kpL.octave;
-            const float &vL = kpL.pt.y;
-            const float &uL = kpL.pt.x;
+        if(maxU<0)
+            return;
 
-            
-            //const vector<size_t> &vCandidates = vRowIndices_gpu[vL];      //TODELETE  
+        int bestDist = TH_HIGH_gpu;
+        size_t bestIdxR = 0;
 
-            //if(vCandidates.empty())                                       //TODELETE  
-            //    return;  // Terminate thread                              //TODELETE
+        //const cv::Mat &dL = mDescriptors_gpu.row(iL);   // TODELETE
 
-            
-            const float minU = uL-maxD_gpu;
-            const float maxU = uL-minD_gpu;
+        //For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
+        size_t num_elem_line = size_refer_gpu[(int)vL];
+        const size_t index_taked = incremental_size_refer_gpu[(int)vL] - num_elem_line;
+        minium_dist[partition_i] = TH_HIGH_gpu;
+        minium_dist_gpu[iL] = TH_HIGH_gpu;    
 
-            if(maxU<0)
-                return;
+        if(id < num_elem_line){
 
-            int bestDist = TH_HIGH_gpu;
-            size_t bestIdxR = 0;
-
-            //const cv::Mat &dL = mDescriptors_gpu.row(iL);   // TODELETE
-
-            //For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
-            const size_t index_taked = incremental_size_refer_gpu[(int)vL] - size_refer_gpu[(int)vL];
-            const size_t iR = vRowIndices_gpu[incremental_size_refer_gpu[(int)vL] - size_refer_gpu[(int)vL] + (id + partition_i)] ;
+            const size_t iR = vRowIndices_gpu[incremental_size_refer_gpu[(int)vL] - num_elem_line + (id)] ;
             const cv::KeyPoint &kpR = mvKeysRight_gpu[iR];
 
             
@@ -119,10 +129,13 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
                 const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
                 const int dist = DescriptorDistance(dL , dR); 
                 
-                //atomicMin( &minium_dist[partition_i] , dist);          // TODO : Check if it is correct
                 __syncthreads(); // Waiting that all thread of the block calculate the distance
-                 
-                //minium_dist_gpu[iL] = dist;
+                atomicMin( &minium_dist[partition_i] , dist);          // TODO : Check if it is correct
+                __syncthreads(); // Waiting that all thread of the block calculate the distance
+                minium_dist_gpu[iL] = minium_dist[partition_i];
+
+
+
                 //printf("{%d} [GPU] Distanza minimima della linea iL(%d) = %d  clt-bID(%lu)tID(%lu)\n" , time_calls_gpu , iL , minium_dist[partition_i] , b_id , id);
 
                 
@@ -146,7 +159,8 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
 
                 */
 
-               printf("{%d}[GPU]dist of element iL[%d] iR[%lu] : %d \n" , time_calls_gpu , iL , iR , dist); 
+                if(iL < 100)
+                    printf("{%d}[GPU]dist of element iL[%d] iR[%lu] : %d   [num-elem-of-lines-%d=%lu] \n" , time_calls_gpu , iL , iR , dist, (int)vL ,num_elem_line); 
                 
 
                 
@@ -154,9 +168,10 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
                 
             }
         }
+    }
         
 
-    }
+    
 
 
 }
@@ -231,7 +246,7 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
     //printf of size_refer and incremental_size_refer
     
     for(int i=0 ; i<vRowIndices.size() ; i++){
-        printf("%lu \t %lu\n" , size_refer[i] , incremental_size_refer[i]);
+        printf("%d: %lu \t %lu\n" , i , size_refer[i] , incremental_size_refer[i]);
     }
 
     cudaMalloc(&incremental_size_refer_gpu , sizeof(size_t) * incremental_size_refer.size() );

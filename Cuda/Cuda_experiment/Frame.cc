@@ -110,7 +110,7 @@ void Frame::ComputeStereoMatches()
             }
         }
 
-        //printf("{%d} [CPU] Distanza minimima della linea iL(%d) = %d\n" , time_calls , iL , bestDist);
+        printf("{%d} [CPU] Distanza minimima della linea iL(%d) = %d\n" , time_calls , iL , bestDist);
 
         // Subpixel match by correlation
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
