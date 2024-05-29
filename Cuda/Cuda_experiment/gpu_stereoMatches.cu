@@ -123,8 +123,8 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
 
 
             //ATTENZIONE, SE SCOMMENTO QUESTA RIGA NON FUNZIONA PIÙ!!!
-            //if(iL < 20 )
-            //    printf("{%d}[GPU]going to calculate dist element iL[%d] iR[%lu] ID_THR:%lu \n" , time_calls_gpu , iL , iR , id); 
+            if(iL < 50 )
+                printf("{%d}[GPU]going to calculate dist element iL[%d] iR[%lu] ID_THR:%lu , num-elem-of-line:%lu \n" , time_calls_gpu , iL , iR , id , num_elem_line); 
             
             if(kpR.octave<levelL-1 || kpR.octave>levelL+1)
                 return;
@@ -284,7 +284,7 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
             printf("  ***");
         printf("\n");
     }
-    printf("Percentuale somiglianza : %f%% \n\n\n\n" , ((float)cont / (float)N) * 100);
+    printf("{%d} Percentuale somiglianza : %f%% \n\n\n\n" , time_calls , ((float)cont / (float)N) * 100);
 
 
     //Deallocazione della memoria
