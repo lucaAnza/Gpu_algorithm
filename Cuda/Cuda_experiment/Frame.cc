@@ -48,9 +48,8 @@ void Frame::ComputeStereoMatches()
     const float maxD = mbf/minZ;
 
 
-    // Chiama la funzione parallela di stereo matching     (luke_add)
-    gpu_stereoMatches( time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer );
-
+    
+    vector<int> best_dist_line_iL;  // (luke add)
 
     // For each left keypoint search a match in the right image  -> I candidati possibili sono nel vettore "vRowIndices -> vCandidates"
     vector<pair<int, int> > vDistIdx;
@@ -90,6 +89,8 @@ void Frame::ComputeStereoMatches()
             //printf("{%d}[CPU]element of mvKeys[iL].pt.y(vL) : %f ,  iL[%d] iR[%lu] take index : %lu  \n" , time_calls , mvKeys[iL].pt.y  ,iL , iR , iC ); 
             const cv::KeyPoint &kpR = mvKeysRight[iR];   // kpR assume il valore del punto corrispondente al candidato
 
+            //printf("{%d}[CPU] going to calculate dist of element iL[%d] iR[%lu] , num-elem = %d \n" , time_calls , iL , iR , vCandidates.size() );
+
             if(kpR.octave<levelL-1 || kpR.octave>levelL+1)  // kpR.octave rappresenta il livello piramidale (scala) del punto a DX, levelL di quello a SX
                 continue;
 
@@ -100,7 +101,7 @@ void Frame::ComputeStereoMatches()
                 const cv::Mat &dR = mDescriptorsRight.row(iR);  
                 const int dist = ORBmatcher::DescriptorDistance(dL,dR);   // restituisce la distanza tra riga DX e SX (DA APPROFONDIRE)
 
-                printf("{%d}[CPU]dist of element iL[%d] iR[%lu] : %d \n" , time_calls , iL , iR , dist); 
+                //printf("{%d}[CPU]dist of element iL[%d] iR[%lu] : %d \n" , time_calls , iL , iR , dist); 
 
                 if(dist<bestDist)
                 {
@@ -110,7 +111,8 @@ void Frame::ComputeStereoMatches()
             }
         }
 
-        printf("{%d} [CPU] Distanza minimima della linea iL(%d) = %d\n" , time_calls , iL , bestDist);
+        //printf("{%d} [CPU] Distanza minimima della linea iL(%d) = %d\n" , time_calls , iL , bestDist);
+        best_dist_line_iL.push_back(bestDist);
 
         // Subpixel match by correlation
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
@@ -185,6 +187,9 @@ void Frame::ComputeStereoMatches()
             }
         }
     }
+
+    // Chiama la funzione parallela di stereo matching     (luke_add)
+    gpu_stereoMatches( time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL);
 
     sort(vDistIdx.begin(),vDistIdx.end());
     const float median = vDistIdx[vDistIdx.size()/2].first;

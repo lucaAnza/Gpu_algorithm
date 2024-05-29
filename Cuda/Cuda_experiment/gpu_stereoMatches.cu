@@ -74,6 +74,13 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
 
     int begin = (int)b_id * partition_factor;
 
+    // Init of minium distance vector
+    for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
+        minium_dist[partition_i] = TH_HIGH_gpu;
+        minium_dist_gpu[iL] = TH_HIGH_gpu;
+    }
+    
+    __syncthreads();
     for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
         
         //Pre-For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,8 +110,7 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
         //For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
         size_t num_elem_line = size_refer_gpu[(int)vL];
         const size_t index_taked = incremental_size_refer_gpu[(int)vL] - num_elem_line;
-        minium_dist[partition_i] = TH_HIGH_gpu;
-        minium_dist_gpu[iL] = TH_HIGH_gpu;    
+        
 
         if(id < num_elem_line){
 
@@ -116,8 +122,13 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
             //printf("{%d}[GPU]elements of mvKeys[iL].pt.y(vL) : %f ,  iL[%d] iR[%lu]  take index : %lu i_sr = %lu  sr = %lu \n" , time_calls_gpu , mvKeys_gpu[iL].pt.y  ,iL , iR , index_taked , incremental_size_refer_gpu[(int)vL] , size_refer_gpu[(int)vL]); 
 
 
-            if(kpR.octave<levelL-1 || kpR.octave>levelL+1)  
+            //ATTENZIONE, SE SCOMMENTO QUESTA RIGA NON FUNZIONA PIÙ!!!
+            //if(iL < 20 )
+            //    printf("{%d}[GPU]going to calculate dist element iL[%d] iR[%lu] ID_THR:%lu \n" , time_calls_gpu , iL , iR , id); 
+            
+            if(kpR.octave<levelL-1 || kpR.octave>levelL+1)
                 return;
+            
             
             const float &uR = kpR.pt.x;  
 
@@ -128,16 +139,12 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
                 const unsigned char *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * iL );
                 const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
                 const int dist = DescriptorDistance(dL , dR); 
-                
-                
                 atomicMin( &minium_dist[partition_i] , dist);          // TODO : Check if it is correct
                 //printf("{%d} [GPU] Distanza minimima della linea iL(%d) = %d  clt-bID(%lu)tID(%lu)\n" , time_calls_gpu , iL , minium_dist[partition_i] , b_id , id);
                 
-                __syncthreads() // NOT WORKING TRY TO FIX!
-                minium_dist_gpu[iL] = minium_dist[partition_i];     // NEED TO SYNCHRONIZE
-                
-                
-                
+   
+                            
+            
 
                 /*     
 
@@ -155,18 +162,26 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
                 //CONTINUE FROM HERE...
 
                 */
-                
-                //printf("{%d}[GPU]dist of element iL[%d] iR[%lu] : %d   [num-elem-of-lines-%d=%lu] min_dist:%d \n" , time_calls_gpu , iL , iR , dist, (int)vL ,num_elem_line , minium_dist[partition_i]); 
+                //if(iL < 100)
+                //    printf("{%d}[GPU]dist of element iL[%d] iR[%lu] : %d   [num-elem-of-lines-%d=%lu] min_dist:%d \n" , time_calls_gpu , iL , iR , dist, (int)vL ,num_elem_line , minium_dist[partition_i]); 
                 
    
             }
         }
+        __syncthreads();
     }
+    __syncthreads();
+    // Save minium distance on Arrays
+    for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
+        minium_dist_gpu[iL] = minium_dist[partition_i];
+    }
+
+
 }
 
 
 void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist ,cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
-                      std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer){
+                      std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer , std::vector<int> best_dists){
 
     cv::KeyPoint *mvKeys_gpu;
     cv::KeyPoint *mvKeysRight_gpu;
@@ -260,9 +275,16 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
 
     
     printf("{%d}Stampa delle distanze minime : \n" , time_calls);
+    int cont=0;
     for(int i=0 ; i<N ; i++){
-        printf("{%d} %d : %d\n" , time_calls ,  i , distanzaMinime[i]);
+        printf("{%d} %d : GPU -> %d , CPU -> %d" , time_calls ,  i , distanzaMinime[i] , best_dists[i]);
+        if(distanzaMinime[i] == best_dists[i])
+            cont++;
+        else
+            printf("  ***");
+        printf("\n");
     }
+    printf("Percentuale somiglianza : %f%% \n\n\n\n" , ((float)cont / (float)N) * 100);
 
 
     //Deallocazione della memoria
