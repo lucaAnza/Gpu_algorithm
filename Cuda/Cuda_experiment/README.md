@@ -26,6 +26,10 @@ And explanation of the iterative algoritmh.
 
 <img src="img/best_candidate_explain.png" width=50% alt=""> </img>
 
+## Explanation part2 of the iterative algorithm
+
+<img src="img/sliding_window_explain.png" width=50% alt=""> </img>
+
 ### opt1_simulation.cu
 
 #### Simulazione
@@ -51,6 +55,10 @@ Come passo intermedio, creo un programma più semplice ma in parte simile al pro
 #### Find Minium Distance
 
 <img src="img/GPU_opt1_findMinDistance.png" width=40% alt="find min distance"> </img><br>
+
+#### Sliding Window (change some minium distance)
+
+//TODO
 
 
 #### Steps
