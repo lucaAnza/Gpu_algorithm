@@ -58,7 +58,7 @@ Come passo intermedio, creo un programma più semplice ma in parte simile al pro
 
 #### Sliding Window (change some minium distance)
 
-//TODO
+<img src="img/GPU_opt1_slidingWindow.png" width=40% alt="find min distance"> </img><br>
 
 
 #### Steps

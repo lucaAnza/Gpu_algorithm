@@ -101,8 +101,6 @@ void Frame::ComputeStereoMatches()
                 const cv::Mat &dR = mDescriptorsRight.row(iR);  
                 const int dist = ORBmatcher::DescriptorDistance(dL,dR);   // restituisce la distanza tra riga DX e SX (DA APPROFONDIRE)
 
-                printf("{%d}[CPU]dist of element iL[%d] iR[%lu] : %d \n" , time_calls , iL , iR , dist); 
-
                 if(dist<bestDist)
                 {
                     bestDist = dist;
@@ -145,7 +143,6 @@ void Frame::ComputeStereoMatches()
             for(int incR=-L; incR<=+L; incR++)
             {
                 cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
-
                 float dist = cv::norm(IL,IR,cv::NORM_L1);   // Esegue la norma1 tra la finestra_sx e la finestra_dx
                 if(dist<bestDist)
                 {

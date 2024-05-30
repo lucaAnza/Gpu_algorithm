@@ -19,6 +19,7 @@
 #define VROWINDICES_MAX_COL 120  //TODO -> Può trasformarsi in una variabile ed essere la massima size delle righe di vrowindices.
 #define MDESCRIPTOR_MAX_COL 32
 #define MAX_PARTITION_FACTOR 7
+#define NUM_THREAD 256
 
 //Allocazione memoria costante in Gpu                      
 __constant__  float minZ_gpu;   
@@ -51,22 +52,14 @@ __device__ int DescriptorDistance(const unsigned char *a, const unsigned char* b
 }
 
 
-///////////////////
-//////////////////
-/////////////////
-////// TO DO//////  -------->  Capire perchè c'è una differenza tra minium_dist[GPU] e minium_dist[CPU] (la differenza è solo in alcuni elementi) -> 
-///////////////////
-///////////////////
-////////////////////
 
-
-
-__global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu ,  unsigned char   * mDescriptors_gpu , unsigned char *mDescriptorsRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu 
-                        , size_t *size_refer_gpu  , size_t *incremental_size_refer_gpu , int *minium_dist_gpu ) {
+// Funzione che calcola le distanze minime tra due i descrittori di 2 punti chiave.
+__global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu ,  unsigned char   * mDescriptors_gpu , unsigned char *mDescriptorsRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu 
+                        , size_t *size_refer_gpu  , size_t *incremental_size_refer_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu ) {
     
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
-    __shared__ int minium_dist[MAX_PARTITION_FACTOR]; 
+    __shared__ int miniumDistShared[MAX_PARTITION_FACTOR]; 
 
     //printf("[GPU] , size_refer_gpu[b_id=%lu]; %lu %lu \n" , b_id ,num_elem_line , size_refer_gpu[b_id]);    //DEBUG 
 
@@ -76,86 +69,69 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
 
     // Init of minium distance vector
     for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
-        minium_dist[partition_i] = TH_HIGH_gpu;
-        minium_dist_gpu[iL] = TH_HIGH_gpu;
+        miniumDistShared[partition_i] = TH_HIGH_gpu;
+        miniumDist_gpu[iL] = TH_HIGH_gpu;
     }
     
     __syncthreads();
+
     for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
-        
-        //Pre-For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
         const cv::KeyPoint &kpL = mvKeys_gpu[iL];
         const int &levelL = kpL.octave;
         const float &vL = kpL.pt.y;
-        const float &uL = kpL.pt.x;
-
-        
-        //const vector<size_t> &vCandidates = vRowIndices_gpu[vL];      //TODELETE  
-
-        //if(vCandidates.empty())                                       //TODELETE  
-        //    return;  // Terminate thread                              //TODELETE
-
-        
+        const float &uL = kpL.pt.x;        
         const float minU = uL-maxD_gpu;
         const float maxU = uL-minD_gpu;
 
         if(maxU<0){
-            printf("{%d} eliminated iL[%d] ID = %d\n" , time_calls_gpu , iL , id); 
             continue;
         }
 
         int bestDist = TH_HIGH_gpu;
         size_t bestIdxR = 0;
 
-        //const cv::Mat &dL = mDescriptors_gpu.row(iL);   // TODELETE
-
         //For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
         size_t num_elem_line = size_refer_gpu[(int)vL];
         const size_t index_taked = incremental_size_refer_gpu[(int)vL] - num_elem_line;
         
         if(id < num_elem_line){
-            
             const size_t iR = vRowIndices_gpu[incremental_size_refer_gpu[(int)vL] - num_elem_line + (id)] ;
             const cv::KeyPoint &kpR = mvKeysRight_gpu[iR];
-
-            
-            // Working debug   (check if iL iR GPU is the same of CPU use-> grep "\{1\}.*iL\[820\] iR\[694\]" output.txt)
-            //printf("{%d}[GPU]elements of mvKeys[iL].pt.y(vL) : %f ,  iL[%d] iR[%lu]  take index : %lu i_sr = %lu  sr = %lu \n" , time_calls_gpu , mvKeys_gpu[iL].pt.y  ,iL , iR , index_taked , incremental_size_refer_gpu[(int)vL] , size_refer_gpu[(int)vL]); 
-
-
-            //ATTENZIONE, SE SCOMMENTO QUESTA RIGA NON FUNZIONA PIÙ!!!
-            //if(iL < 50 )
-            //    printf("{%d}[GPU]going to calculate dist element iL[%d] iR[%lu] ID_THR:%lu , num-elem-of-line:%lu \n" , time_calls_gpu , iL , iR , id , num_elem_line); 
             
             if(kpR.octave<levelL-1 || kpR.octave>levelL+1)
                 continue;
             
             const float &uR = kpR.pt.x;  
-
             if(uR>=minU && uR<=maxU) {   // Controllo se la x del keypointCandidatoDX sta in un range
-            
-                //const cv::Mat &dR = mDescriptorsRight.row(iR);     //TODELETE
-
                 const unsigned char *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * iL );
                 const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
                 const int dist = DescriptorDistance(dL , dR); 
-                atomicMin( &minium_dist[partition_i] , dist);          // TODO : Check if it is correct
-                //printf("{%d} [GPU] Distanza minimima della linea iL(%d) = %d  clt-bID(%lu)tID(%lu)\n" , time_calls_gpu , iL , minium_dist[partition_i] , b_id , id);
-                //if(iL < 100)
-                //    printf("{%d}[GPU]dist of element iL[%d] iR[%lu] : %d   [num-elem-of-lines-%d=%lu] min_dist:%d \n" , time_calls_gpu , iL , iR , dist, (int)vL ,num_elem_line , minium_dist[partition_i]); 
-                
+                atomicMin( &miniumDistShared[partition_i] , dist);          // TODO : Check if it is correct    
             }
         }
     }
-
     __syncthreads();
+
     // Save minium distance on Arrays
     for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
-        minium_dist_gpu[iL] = minium_dist[partition_i];
+        miniumDist_gpu[iL] = miniumDistShared[partition_i];
     }
 
+}
+
+
+__global__ void slidingWindow(cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu){
+
+    size_t id = threadIdx.x;    // Each thread rappresent one element
+    size_t b_id = blockIdx.x;   // Each block rappresent one row
+    size_t index = (b_id * blockDim.x) + id;
+
+    printf("index : %lu\n" , index);
+    // CONTINUE FROM HERE...
 
 }
+
+
 
 
 void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist ,cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
@@ -175,7 +151,8 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
     unsigned total_element=0;
     unsigned nRows = vRowIndices.size();
     unsigned N = mvKeys.size();
-    int *minium_dist_gpu;
+    int *miniumDist_gpu;
+    size_t *miniumDistIndex_gpu;
     
     // Copia parametri input in memoria costante
     cudaMemcpyToSymbol(minZ_gpu, &minZ, 1 * sizeof(float));
@@ -224,31 +201,31 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
             vRowIndices_temp.push_back(vRowIndices[i][j]);
         }
     }
-
-    //printf of size_refer and incremental_size_refer
-    
-    for(int i=0 ; i<vRowIndices.size() ; i++){
-        printf("%d: %lu \t %lu\n" , i , size_refer[i] , incremental_size_refer[i]);
-    }
-
     cudaMalloc(&incremental_size_refer_gpu , sizeof(size_t) * incremental_size_refer.size() );
     cudaMemcpy(incremental_size_refer_gpu, incremental_size_refer.data(), sizeof(size_t) * size_refer.size(), cudaMemcpyHostToDevice); 
     cudaMalloc(&vRowIndices_gpu , sizeof(size_t) * total_element );
     cudaMemcpy(vRowIndices_gpu, vRowIndices_temp.data(), sizeof(size_t) * total_element, cudaMemcpyHostToDevice); 
+
+    //DEBUG - ToDelete
+    for(int i=0 ; i<vRowIndices.size() ; i++){
+        printf("%d: %lu \t %lu\n" , i , size_refer[i] , incremental_size_refer[i]);
+    }
     
+    //Test - Functionality of minium distance
+    cudaMalloc(&miniumDist_gpu , sizeof(int) * N);
+    cudaMalloc(&miniumDistIndex_gpu , sizeof(size_t) * N);
 
-    //Test - TODELETE
-    cudaMalloc(&minium_dist_gpu , sizeof(int) * N);
 
-
-    printf("Sto per lanciare il test della GPU by Luca Anzald: \n");
-    cuda_test<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , minium_dist_gpu );
+    printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
+    findMiniumDistance<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
+    cudaDeviceSynchronize();
+    slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu);
     cudaDeviceSynchronize();
 
-    //Test -TODELETE
+    //Test - Functionality of minium distance
     printf("partition_factor :%d , thorbdist : %d \n" , part_const , thOrbDist);
     int distanzaMinime[N];
-    cudaMemcpy(distanzaMinime, minium_dist_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
+    cudaMemcpy(distanzaMinime, miniumDist_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
 
     
@@ -278,11 +255,5 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
 
 }
 
-
-
-/*
-void gpu_stereoMatches(std::vector<cv::KeyPoint> mvKeys , float minZ , float minD , float maxD , int TH_HIGH , cv::Mat mDescriptorsRight , 
-                        vector<float> mvInvScaleFactors , ORBextractor* mpORBextractorLeft , vector<float> mvScaleFactors ){
-*/
 
 
