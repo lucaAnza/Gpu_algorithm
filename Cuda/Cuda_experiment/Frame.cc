@@ -50,6 +50,7 @@ void Frame::ComputeStereoMatches()
 
     
     vector<int> best_dist_line_iL;  // (luke add)
+    vector<size_t> best_dist_line_index_iL;  // (luke add)
 
     // For each left keypoint search a match in the right image  -> I candidati possibili sono nel vettore "vRowIndices -> vCandidates"
     vector<pair<int, int> > vDistIdx;
@@ -111,6 +112,7 @@ void Frame::ComputeStereoMatches()
 
         //printf("{%d} [CPU] Distanza minimima della linea iL(%d) = %d\n" , time_calls , iL , bestDist);
         best_dist_line_iL.push_back(bestDist);
+        best_dist_line_index_iL.push_back(bestIdxR);
 
         // Subpixel match by correlation
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
@@ -186,7 +188,7 @@ void Frame::ComputeStereoMatches()
     }
 
     // Chiama la funzione parallela di stereo matching     (luke_add)
-    gpu_stereoMatches( time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL);
+    gpu_stereoMatches( time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL ,  best_dist_line_index_iL);
 
     sort(vDistIdx.begin(),vDistIdx.end());
     const float median = vDistIdx[vDistIdx.size()/2].first;

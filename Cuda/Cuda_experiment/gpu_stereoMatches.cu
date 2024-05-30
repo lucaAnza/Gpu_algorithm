@@ -60,6 +60,7 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
     __shared__ int miniumDistShared[MAX_PARTITION_FACTOR]; 
+    __shared__ size_t miniumDistIndexShared[MAX_PARTITION_FACTOR];
 
     //printf("[GPU] , size_refer_gpu[b_id=%lu]; %lu %lu \n" , b_id ,num_elem_line , size_refer_gpu[b_id]);    //DEBUG 
 
@@ -71,6 +72,8 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
     for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
         miniumDistShared[partition_i] = TH_HIGH_gpu;
         miniumDist_gpu[iL] = TH_HIGH_gpu;
+        miniumDistIndexShared[partition_i] = 0;
+        miniumDistIndex_gpu[iL] = 0;
     }
     
     __syncthreads();
@@ -106,7 +109,7 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
                 const unsigned char *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * iL );
                 const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
                 const int dist = DescriptorDistance(dL , dR); 
-                atomicMin( &miniumDistShared[partition_i] , dist);          // TODO : Check if it is correct    
+                atomicMin( &miniumDistShared[partition_i] , dist);       
             }
         }
     }
@@ -114,19 +117,36 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
 
     // Save minium distance on Arrays
     for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
+        //Save of the value
         miniumDist_gpu[iL] = miniumDistShared[partition_i];
+        //Save of the index ->  TODO(not urgent) -> Try to optimize this 
+        const cv::KeyPoint &kpL = mvKeys_gpu[iL];
+        const int &levelL = kpL.octave;
+        const float &vL = kpL.pt.y;
+        size_t num_elem_line = size_refer_gpu[(int)vL];
+        const size_t iR = vRowIndices_gpu[incremental_size_refer_gpu[(int)vL] - num_elem_line + (id)];
+        const unsigned char *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * iL );
+        const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
+        const int dist = DescriptorDistance(dL , dR); 
+        
+        ///////////// TO DO //////////////////////////////////////////////
+        ///////// Capire perchè c'è se scommento la riga sotto non va più ////
+        ///////////////////////////////////////////////////////////////////
+        
+        //if(dist == miniumDistShared[iL]){
+        //    miniumDistIndex_gpu[iL] = 0;    // the correct should be -> miniumDistIndex_gpu[iL] = iR;
+        //}
     }
 
 }
 
 
-__global__ void slidingWindow(cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu){
+__global__ void slidingWindow(cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu){
 
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
     size_t index = (b_id * blockDim.x) + id;
 
-    printf("index : %lu\n" , index);
     // CONTINUE FROM HERE...
 
 }
@@ -135,7 +155,7 @@ __global__ void slidingWindow(cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRig
 
 
 void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist ,cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
-                      std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer , std::vector<int> best_dists){
+                      std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer , std::vector<int> best_dists , std::vector<size_t> best_dists_index){
 
     cv::KeyPoint *mvKeys_gpu;
     cv::KeyPoint *mvKeysRight_gpu;
@@ -219,27 +239,36 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
     printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
     findMiniumDistance<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
     cudaDeviceSynchronize();
-    slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu);
-    cudaDeviceSynchronize();
+    //slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
+    //cudaDeviceSynchronize();
 
     //Test - Functionality of minium distance
     printf("partition_factor :%d , thorbdist : %d \n" , part_const , thOrbDist);
-    int distanzaMinime[N];
-    cudaMemcpy(distanzaMinime, miniumDist_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
+    int distanzeMinime[N];
+    size_t distanzeMinimeIndici[N];
+    cudaMemcpy(distanzeMinime, miniumDist_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
+    cudaMemcpy(distanzeMinimeIndici, miniumDistIndex_gpu, sizeof(size_t) * N, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
 
     
-    printf("{%d}Stampa delle distanze minime : \n" , time_calls);
-    int cont=0;
+    printf("{%d}Stampa delle distanze minime e degli indici: \n" , time_calls);
+    int cont_valori=0;
+    int cont_indici=0;
     for(int i=0 ; i<N ; i++){
-        printf("{%d} %d : GPU -> %d , CPU -> %d" , time_calls ,  i , distanzaMinime[i] , best_dists[i]);
-        if(distanzaMinime[i] == best_dists[i])
-            cont++;
+        printf("{%d} %d : GPU -> %d[iR=%lu] , CPU -> %d[iR=%lu]" , time_calls ,  i , distanzeMinime[i] , distanzeMinimeIndici[i] , best_dists[i] , best_dists_index[i]);
+        if(distanzeMinime[i] == best_dists[i])
+            cont_valori++;
         else
             printf("  ***");
+        if(distanzeMinimeIndici[i] == best_dists_index[i])
+            cont_indici++;
+        
         printf("\n");
     }
-    printf("{%d} Percentuale somiglianza : %f%% \n\n\n\n" , time_calls , ((float)cont / (float)N) * 100);
+    printf("{%d} Percentuale somiglianza valori : %f%% \n" , time_calls , ((float)cont_valori / (float)N) * 100);
+    printf("{%d} Percentuale somiglianza indici : %f%% \n\n\n\n" , time_calls , ((float)cont_indici / (float)N) * 100);
+
+    
 
 
     //Deallocazione della memoria
