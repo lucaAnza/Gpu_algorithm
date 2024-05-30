@@ -99,8 +99,10 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
         const float minU = uL-maxD_gpu;
         const float maxU = uL-minD_gpu;
 
-        if(maxU<0)
-            return;
+        if(maxU<0){
+            printf("{%d} eliminated iL[%d] ID = %d\n" , time_calls_gpu , iL , id); 
+            continue;
+        }
 
         int bestDist = TH_HIGH_gpu;
         size_t bestIdxR = 0;
@@ -111,9 +113,8 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
         size_t num_elem_line = size_refer_gpu[(int)vL];
         const size_t index_taked = incremental_size_refer_gpu[(int)vL] - num_elem_line;
         
-
         if(id < num_elem_line){
-
+            
             const size_t iR = vRowIndices_gpu[incremental_size_refer_gpu[(int)vL] - num_elem_line + (id)] ;
             const cv::KeyPoint &kpR = mvKeysRight_gpu[iR];
 
@@ -123,12 +124,11 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
 
 
             //ATTENZIONE, SE SCOMMENTO QUESTA RIGA NON FUNZIONA PIÙ!!!
-            if(iL < 50 )
-                printf("{%d}[GPU]going to calculate dist element iL[%d] iR[%lu] ID_THR:%lu , num-elem-of-line:%lu \n" , time_calls_gpu , iL , iR , id , num_elem_line); 
+            //if(iL < 50 )
+            //    printf("{%d}[GPU]going to calculate dist element iL[%d] iR[%lu] ID_THR:%lu , num-elem-of-line:%lu \n" , time_calls_gpu , iL , iR , id , num_elem_line); 
             
             if(kpR.octave<levelL-1 || kpR.octave>levelL+1)
-                return;
-            
+                continue;
             
             const float &uR = kpR.pt.x;  
 
@@ -141,35 +141,13 @@ __global__ void cuda_test(size_t* vRowIndices_gpu , cv::KeyPoint *mvKeys_gpu , c
                 const int dist = DescriptorDistance(dL , dR); 
                 atomicMin( &minium_dist[partition_i] , dist);          // TODO : Check if it is correct
                 //printf("{%d} [GPU] Distanza minimima della linea iL(%d) = %d  clt-bID(%lu)tID(%lu)\n" , time_calls_gpu , iL , minium_dist[partition_i] , b_id , id);
-                
-   
-                            
-            
-
-                /*     
-
-                A   A   A   A 
-                |   |   |   |
-                |   |   |   |
-                |   |   |   | 
-                
-                if(dist<bestDist)
-                {
-                    bestDist = dist;
-                    bestIdxR = iR;
-                }
-                
-                //CONTINUE FROM HERE...
-
-                */
                 //if(iL < 100)
                 //    printf("{%d}[GPU]dist of element iL[%d] iR[%lu] : %d   [num-elem-of-lines-%d=%lu] min_dist:%d \n" , time_calls_gpu , iL , iR , dist, (int)vL ,num_elem_line , minium_dist[partition_i]); 
                 
-   
             }
         }
-        __syncthreads();
     }
+
     __syncthreads();
     // Save minium distance on Arrays
     for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
