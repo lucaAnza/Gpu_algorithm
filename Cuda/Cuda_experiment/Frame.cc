@@ -101,7 +101,7 @@ void Frame::ComputeStereoMatches()
             {
                 const cv::Mat &dR = mDescriptorsRight.row(iR);  
                 const int dist = ORBmatcher::DescriptorDistance(dL,dR);   // restituisce la distanza tra riga DX e SX (DA APPROFONDIRE)
-
+                //printf("{%d}[CPU] distance of element iL[%d] iR[%lu] : %d , num-elem = %d \n" , time_calls , iL , iR , dist, vCandidates.size() );
                 if(dist<bestDist)
                 {
                     bestDist = dist;

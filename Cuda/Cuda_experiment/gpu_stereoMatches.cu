@@ -60,7 +60,7 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
     __shared__ int miniumDistShared[MAX_PARTITION_FACTOR]; 
-    __shared__ size_t miniumDistIndexShared[MAX_PARTITION_FACTOR];
+    //__shared__ size_t miniumDistIndexShared[MAX_PARTITION_FACTOR];
 
     //printf("[GPU] , size_refer_gpu[b_id=%lu]; %lu %lu \n" , b_id ,num_elem_line , size_refer_gpu[b_id]);    //DEBUG 
 
@@ -72,7 +72,7 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
     for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
         miniumDistShared[partition_i] = TH_HIGH_gpu;
         miniumDist_gpu[iL] = TH_HIGH_gpu;
-        miniumDistIndexShared[partition_i] = 0;
+        //miniumDistIndexShared[partition_i] = 0;
         miniumDistIndex_gpu[iL] = 0;
     }
     
@@ -90,9 +90,6 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
             continue;
         }
 
-        int bestDist = TH_HIGH_gpu;
-        size_t bestIdxR = 0;
-
         //For-Loop////////////////////////////////////////////////////////////////////////////////////////////////////
         size_t num_elem_line = size_refer_gpu[(int)vL];
         const size_t index_taked = incremental_size_refer_gpu[(int)vL] - num_elem_line;
@@ -109,7 +106,7 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
                 const unsigned char *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * iL );
                 const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
                 const int dist = DescriptorDistance(dL , dR); 
-                atomicMin( &miniumDistShared[partition_i] , dist);       
+                atomicMin( &miniumDistShared[partition_i] , dist);     
             }
         }
     }
@@ -119,24 +116,35 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
     for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
         //Save of the value
         miniumDist_gpu[iL] = miniumDistShared[partition_i];
+        
         //Save of the index ->  TODO(not urgent) -> Try to optimize this 
         const cv::KeyPoint &kpL = mvKeys_gpu[iL];
         const int &levelL = kpL.octave;
         const float &vL = kpL.pt.y;
+        const float &uL = kpL.pt.x;        
+        const float minU = uL-maxD_gpu;
+        const float maxU = uL-minD_gpu;
+        if(maxU<0){
+            continue;
+        }
         size_t num_elem_line = size_refer_gpu[(int)vL];
-        const size_t iR = vRowIndices_gpu[incremental_size_refer_gpu[(int)vL] - num_elem_line + (id)];
-        const unsigned char *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * iL );
-        const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
-        const int dist = DescriptorDistance(dL , dR); 
-        
-        ///////////// TO DO //////////////////////////////////////////////
-        ///////// Capire perchè c'è se scommento la riga sotto non va più ////
-        ///////////////////////////////////////////////////////////////////
-        
-        //if(dist == miniumDistShared[iL]){
-        //    miniumDistIndex_gpu[iL] = 0;    // the correct should be -> miniumDistIndex_gpu[iL] = iR;
-        //}
+        const size_t index_taked = incremental_size_refer_gpu[(int)vL] - num_elem_line;
+        if(id < num_elem_line){
+            const size_t iR = vRowIndices_gpu[incremental_size_refer_gpu[(int)vL] - num_elem_line + (id)] ;
+            const cv::KeyPoint &kpR = mvKeysRight_gpu[iR];
+            if(kpR.octave<levelL-1 || kpR.octave>levelL+1)
+                continue;
+            const float &uR = kpR.pt.x;  
+            if(uR>=minU && uR<=maxU) {   // Controllo se la x del keypointCandidatoDX sta in un range
+                const unsigned char *dL =  (mDescriptors_gpu + mDescriptors_gpu_cols * iL );
+                const unsigned char *dR =  (mDescriptorsRight_gpu + mDescriptors_gpu_cols * iR );
+                const int dist = DescriptorDistance(dL , dR); 
+                if(dist == miniumDistShared[partition_i])
+                    miniumDistIndex_gpu[iL] = iR;
+            }
+        }
     }
+    
 
 }
 
@@ -262,6 +270,7 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
             printf("  ***");
         if(distanzeMinimeIndici[i] == best_dists_index[i])
             cont_indici++;
+        else printf("  XXX ");
         
         printf("\n");
     }
