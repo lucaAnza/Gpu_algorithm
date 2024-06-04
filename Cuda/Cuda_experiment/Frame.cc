@@ -55,7 +55,6 @@ void Frame::ComputeStereoMatches()
     // For each left keypoint search a match in the right image  -> I candidati possibili sono nel vettore "vRowIndices -> vCandidates"
     vector<pair<int, int> > vDistIdx;
     vDistIdx.reserve(N);
-
     
     for(int iL=0; iL<N; iL++)          // Iterazione dei punti chiave SX
     {
@@ -116,7 +115,8 @@ void Frame::ComputeStereoMatches()
 
         // Subpixel match by correlation
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
-        {
+        {   
+            printf("iL = %d kpl.octave : %d\n" , iL , kpL.octave);
             // coordinates in image pyramid at keypoint scale
             const float uR0 = mvKeysRight[bestIdxR].pt.x;        // Prende il valore della x del miglior candidato tra i KeyPoint_Right
             const float scaleFactor = mvInvScaleFactors[kpL.octave];   // Ottiene la scaleFactor da KeyPoint_Left
@@ -188,7 +188,7 @@ void Frame::ComputeStereoMatches()
     }
 
     // Chiama la funzione parallela di stereo matching     (luke_add)
-    gpu_stereoMatches( time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL ,  best_dist_line_index_iL);
+    gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL ,  best_dist_line_index_iL);
 
     sort(vDistIdx.begin(),vDistIdx.end());
     const float median = vDistIdx[vDistIdx.size()/2].first;

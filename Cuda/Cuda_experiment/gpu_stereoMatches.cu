@@ -170,8 +170,25 @@ __global__ void slidingWindow(cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRig
 
         //Problema con cv::Mat -> Impossibile utilizzarlo per funzioni __global__
         //Matrice di CV_8UC1 (11x11), mvImagePyramid[].size() = 8
+        int i_start = scaledvL-w;
+        int i_final = scaledvL+w+1;
+        int j_start = scaleduL-w;
+        int j_final = scaleduL+w+1;
+        
+        /*for (int i=i_start ; i<i_final ; i++){
+            for(int j=j_start ; j<j_final ; j++){
+                printf("%u " , 'a');
+            }
+            printf("\n");
+        }*/
+
+        //mpORBextractorLeft->d_inputImageBlured
         //cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
 
+
+
+
+        
         /*
 
         CONTINUE FROM HERE...
@@ -239,7 +256,7 @@ __global__ void slidingWindow(cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRig
 
 
 
-void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist ,cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
+void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::ORBextractor *mpORBextractorRight , int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist ,cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
                       std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer , std::vector<int> best_dists , std::vector<size_t> best_dists_index){
 
     cv::KeyPoint *mvKeys_gpu;
@@ -281,10 +298,10 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
     cudaMemcpy(mDescriptors_gpu, (unsigned char*)mDescriptors.data, num_elements_left * sizeof(unsigned char), cudaMemcpyHostToDevice);
     cudaMalloc(&mDescriptorsRight_gpu, num_elements_right * sizeof(unsigned char));
     cudaMemcpy(mDescriptorsRight_gpu, (unsigned char*)mDescriptorsRight.data, num_elements_right * sizeof(unsigned char), cudaMemcpyHostToDevice);
-    cudaMalloc(&mvInvScaleFactors_gpu , sizeof(float) * mvInvScaleFactors.size() );
-    cudaMemcpy(mvInvScaleFactors_gpu, mvInvScaleFactors.data(), sizeof(float) * mvInvScaleFactors.size(), cudaMemcpyHostToDevice); 
-    cudaMalloc(&mvScaleFactors_gpu , sizeof(float) * mvScaleFactors.size() );
-    cudaMemcpy(mvScaleFactors_gpu, mvScaleFactors.data(), sizeof(float) * mvScaleFactors.size(), cudaMemcpyHostToDevice);
+    cudaMalloc(&mvInvScaleFactors_gpu , sizeof(float) * mvInvScaleFactors.size() );   //TODO : cambiare mvInvScaleFactors con mpORBextractorLeft->GetInverseScaleFactors()
+    cudaMemcpy(mvInvScaleFactors_gpu, mvInvScaleFactors.data(), sizeof(float) * mvInvScaleFactors.size(), cudaMemcpyHostToDevice);  //TODO : cambiare mvInvScaleFactors con mpORBextractorLeft->GetInverseScaleFactors()
+    cudaMalloc(&mvScaleFactors_gpu , sizeof(float) * mvScaleFactors.size() );    //TODO : cambiare mvScaleFactors con mpORBextractorLeft->GetScaleFactors()
+    cudaMemcpy(mvScaleFactors_gpu, mvScaleFactors.data(), sizeof(float) * mvScaleFactors.size(), cudaMemcpyHostToDevice); //TODO : cambiare mvScaleFactors con mpORBextractorLeft->GetScaleFactors()
     cudaMalloc(&size_refer_gpu , sizeof(size_t) * size_refer.size() );
     cudaMemcpy(size_refer_gpu, size_refer.data(), sizeof(size_t) * size_refer.size(), cudaMemcpyHostToDevice); 
 
@@ -324,8 +341,8 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
     printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
     findMiniumDistance<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
     cudaDeviceSynchronize();
-    //slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
-    //cudaDeviceSynchronize();
+    slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
+    cudaDeviceSynchronize();
 
     //Test - Functionality of minium distance
     printf("partition_factor :%d , thorbdist : %d \n" , part_const , thOrbDist);
@@ -355,8 +372,6 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
     printf("{%d} Percentuale somiglianza indici : %f%% \n\n\n\n" , time_calls , ((float)cont_indici / (float)N) * 100);
 
     
-
-
     //Deallocazione della memoria
     cudaFree(mvKeys_gpu);
     cudaFree(mvKeysRight_gpu);
@@ -367,6 +382,8 @@ void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowInd
     cudaFree(size_refer_gpu);
     cudaFree(incremental_size_refer_gpu);
     cudaFree(vRowIndices_gpu);
+
+
 
 }
 

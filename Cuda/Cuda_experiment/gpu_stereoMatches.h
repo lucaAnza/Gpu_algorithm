@@ -14,10 +14,11 @@
 #include <opencv2/core/hal/interface.h>
 #include <vector>
 #include <opencv2/features2d.hpp>
+#include <ORBextractor.h>
 
 
 
-void gpu_stereoMatches(int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist , cv::Mat mDescriptors , cv::Mat mDescriptorsRight ,
+void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::ORBextractor *mpORBextractorRight , int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist , cv::Mat mDescriptors , cv::Mat mDescriptorsRight ,
                         std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer , std::vector<int> best_dists , std::vector<size_t> best_dists_index ) ;
 
 
