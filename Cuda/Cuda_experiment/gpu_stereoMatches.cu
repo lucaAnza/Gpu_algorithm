@@ -157,6 +157,7 @@ __global__ void slidingWindow(cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRig
     if(miniumDist_gpu[index] < thOrbDist_gpu ){  //if(bestDist<thOrbDist)
 
         // coordinates in image pyramid at keypoint scale
+        const cv::KeyPoint &kpL = mvKeys_gpu[index];
         size_t bestIdxR = miniumDistIndex_gpu[index];
         const float uR0 = mvKeysRight_gpu[bestIdxR].pt.x;        
         const float scaleFactor = mvInvScaleFactors_gpu[kpL.octave];   
@@ -168,7 +169,8 @@ __global__ void slidingWindow(cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRig
         const int w = 5;
 
         //Problema con cv::Mat -> Impossibile utilizzarlo per funzioni __global__
-        cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
+        //Matrice di CV_8UC1 (11x11), mvImagePyramid[].size() = 8
+        //cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
 
         /*
 
