@@ -72,7 +72,6 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
     for(int iL= begin , partition_i = 0; (iL<begin + partition_factor) && (iL<mDescriptors_gpu_lines) ; iL++ , partition_i++){
         miniumDistShared[partition_i] = TH_HIGH_gpu;
         miniumDist_gpu[iL] = TH_HIGH_gpu;
-        //miniumDistIndexShared[partition_i] = 0;
         miniumDistIndex_gpu[iL] = 0;
     }
     
@@ -155,7 +154,83 @@ __global__ void slidingWindow(cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRig
     size_t b_id = blockIdx.x;   // Each block rappresent one row
     size_t index = (b_id * blockDim.x) + id;
 
-    // CONTINUE FROM HERE...
+    if(miniumDist_gpu[index] < thOrbDist_gpu ){  //if(bestDist<thOrbDist)
+
+        // coordinates in image pyramid at keypoint scale
+        size_t bestIdxR = miniumDistIndex_gpu[index];
+        const float uR0 = mvKeysRight_gpu[bestIdxR].pt.x;        
+        const float scaleFactor = mvInvScaleFactors_gpu[kpL.octave];   
+        const float scaleduL = round(kpL.pt.x*scaleFactor);     
+        const float scaledvL = round(kpL.pt.y*scaleFactor);     
+        const float scaleduR0 = round(uR0*scaleFactor);         
+
+        // sliding window search
+        const int w = 5;
+
+        //Problema con cv::Mat -> Impossibile utilizzarlo per funzioni __global__
+        cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
+
+        /*
+
+        CONTINUE FROM HERE...
+
+        int bestDist = INT_MAX;
+        int bestincR = 0;    // è il miglior spostamento della windows
+        const int L = 5;
+        vector<float> vDists;  // ha le distanze tra le finestre nelle immagini sx e dx per ogni possibile spostamento nell'intervallo da -L a +L
+        vDists.resize(2*L+1);
+
+        // calcolano i limiti della finestra scorrevole nella quale verrà effettuata la ricerca dei punti
+        const float iniu = scaleduR0+L-w;       
+        const float endu = scaleduR0+L+w+1;
+        if(iniu<0 || endu >= mpORBextractorRight->mvImagePyramid[kpL.octave].cols)   // per evitare di uscire dai range
+            continue;
+
+        // Si cerca il migliore incremento e la migliore distanza
+        for(int incR=-L; incR<=+L; incR++)
+        {
+            cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
+            float dist = cv::norm(IL,IR,cv::NORM_L1);   // Esegue la norma1 tra la finestra_sx e la finestra_dx
+            if(dist<bestDist)
+            {
+                bestDist =  dist;
+                bestincR = incR;
+            }
+
+            vDists[L+incR] = dist;
+        }
+
+        if(bestincR==-L || bestincR==L)
+            continue;
+
+        // Sub-pixel match (Parabola fitting)
+        const float dist1 = vDists[L+bestincR-1];
+        const float dist2 = vDists[L+bestincR];
+        const float dist3 = vDists[L+bestincR+1];
+
+        const float deltaR = (dist1-dist3)/(2.0f*(dist1+dist3-2.0f*dist2));
+
+        if(deltaR<-1 || deltaR>1)
+            continue;
+
+        // Re-scaled coordinate
+        float bestuR = mvScaleFactors[kpL.octave]*((float)scaleduR0+(float)bestincR+deltaR);
+
+        float disparity = (uL-bestuR);
+
+        if(disparity>=minD && disparity<maxD)
+        {
+            if(disparity<=0)
+            {
+                disparity=0.01;
+                bestuR = uL-0.01;
+            }
+            mvDepth[iL]=mbf/disparity;
+            mvuRight[iL] = bestuR;
+            vDistIdx.push_back(pair<int,int>(bestDist,iL));
+        }
+        */
+    }
 
 }
 

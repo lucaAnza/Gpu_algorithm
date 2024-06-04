@@ -30,7 +30,7 @@ And explanation of the iterative algoritmh.
 
 <img src="img/sliding_window_explain.png" width=50% alt=""> </img>
 
-### opt1_simulation.cu
+### opt1_simulation.cu![alt text](GPU_opt1_slidingWindow.png)
 
 #### Simulazione
 
