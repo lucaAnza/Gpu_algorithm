@@ -130,3 +130,45 @@ int ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b){
         return dist;
 }
 ```
+
+
+5.Analisi di <b>ORBextractor.h</b> per capire se è possibile l'utilizzo di variabili già salvate nella GPU.
+
+```c++
+// ORBSLAM3/include/ORBextractor.h
+
+//piramidi
+uchar *d_images;              // livelli > 0
+uchar *d_inputImage;          // livello = 0  (original img)
+uchar *d_imagesBlured;        // livelli > 0  [sfuocata]
+uchar *d_inputImageBlured;    // livello = 0  (original img) [sfuocata] 
+uchar *outputImages;          // OUTPUT IMG
+float *d_scaleFactor;         // [] -> size=8 each element rappresent one level
+
+// ORBSLAM3/src/gaussian_blur.cu
+//Conversion example
+const float scaleFactor = d_scaleFactor[level];
+const uint new_rows = round(old_h * 1/scaleFactor);
+const uint new_cols = round(old_w * 1/scaleFactor);
+```
+
+6.Aggiunta dei getter per ottenere i dati necessari
+
+```c++
+// ORBSLAM3/include/ORBextractor.h
+int getRows(){
+            return rows;
+}
+
+int getCols(){
+    return rows;
+}
+
+uchar *getd_images(){
+    return d_images();
+}
+
+float* getd_scaleFactor(){
+    return d_scaleFactor;
+}
+```

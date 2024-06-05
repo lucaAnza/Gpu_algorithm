@@ -148,7 +148,7 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
 }
 
 
-__global__ void slidingWindow(cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu){
+__global__ void slidingWindow( int rows , int cols , float *scaleFactors ,cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu){
 
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
@@ -174,6 +174,16 @@ __global__ void slidingWindow(cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRig
         int i_final = scaledvL+w+1;
         int j_start = scaleduL-w;
         int j_final = scaleduL+w+1;
+
+
+        
+        
+        //const float scaleFactor = _scaleFactor[level];   TODO -> possibile eliminazione del parametro float *scaleFactors
+        const uint new_rows = round(rows * 1/scaleFactor);
+        const uint new_cols = round(cols * 1/scaleFactor);
+
+        printf("row = %d , col = %d , scale factor : %f new_rows = %u , new_cols =%u \n" ,  rows , cols , scaleFactor , new_rows , new_cols );
+
         
         /*for (int i=i_start ; i<i_final ; i++){
             for(int j=j_start ; j<j_final ; j++){
@@ -341,7 +351,7 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
     findMiniumDistance<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
     cudaDeviceSynchronize();
-    slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
+    slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
     cudaDeviceSynchronize();
 
     //Test - Functionality of minium distance
