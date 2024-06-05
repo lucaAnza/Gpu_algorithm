@@ -130,7 +130,7 @@ int ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b){
         return dist;
 }
 ```
-
+<br><br>
 
 5.Analisi di <b>ORBextractor.h</b> per capire se è possibile l'utilizzo di variabili già salvate nella GPU.
 
@@ -152,16 +152,21 @@ const uint new_rows = round(old_h * 1/scaleFactor);
 const uint new_cols = round(old_w * 1/scaleFactor);
 ```
 
+Graphic explanation:
+
+<img src="img/piramid_on_gpu.png" width=50% alt=""> </img><br><br>
+
+
 6.Aggiunta dei getter per ottenere i dati necessari
 
 ```c++
 // ORBSLAM3/include/ORBextractor.h
 int getRows(){
-            return rows;
+    return rows;
 }
 
 int getCols(){
-    return rows;
+    return cols;
 }
 
 uchar *getd_images(){

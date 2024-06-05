@@ -1,4 +1,4 @@
-int time_calls = 0;
+int time_calls = 0;   //(luke_add)
 
 void Frame::ComputeStereoMatches()
 {      
@@ -12,7 +12,7 @@ void Frame::ComputeStereoMatches()
     const int nRows = mpORBextractorLeft->mvImagePyramid[0].rows;   // myImagePyramid è una lista di immagini a risoluzione sempre più basse  L[0] è l'immagine con qualità maggiore.
 
     // Creazione array riferimento per GPU (luke_add)
-    vector<size_t> size_refer;   // Array in cui ogni elemento c'è il numero di colonne per ogni riga di vRowIndices
+    vector<size_t> size_refer;   // Array in cui ogni elemento c'è il numero di colonne per ogni riga di vRowIndices  //(luke_add)
     size_refer.resize(nRows);
 
     //Assign keypoints to row table
@@ -116,7 +116,7 @@ void Frame::ComputeStereoMatches()
         // Subpixel match by correlation
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
         {   
-            printf("iL = %d kpl.octave : %d\n" , iL , kpL.octave);
+            printf("iL = %d kpl.octave : %d , size of the piramid : h=%d , w=%d \n" , iL , kpL.octave , mpORBextractorLeft->mvImagePyramid[kpL.octave].size().height , mpORBextractorLeft->mvImagePyramid[kpL.octave].size().width);
             // coordinates in image pyramid at keypoint scale
             const float uR0 = mvKeysRight[bestIdxR].pt.x;        // Prende il valore della x del miglior candidato tra i KeyPoint_Right
             const float scaleFactor = mvInvScaleFactors[kpL.octave];   // Ottiene la scaleFactor da KeyPoint_Left
@@ -128,6 +128,18 @@ void Frame::ComputeStereoMatches()
             const int w = 5;
             // Estrae una sottomatrice per il KeyPoint_Left
             cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
+
+            //(luke_add) ALL IF
+            if(iL == 1){
+                int rows = mpORBextractorLeft->mvImagePyramid[kpL.octave].size().height;
+                int cols = mpORBextractorLeft->mvImagePyramid[kpL.octave].size().width;
+                for (int i=0 ; i<rows ; i++){
+                    for(int j=0 ; j<cols ; j++){
+                        int index = (i*cols) + j;
+                        printf("{%d}CPU - array of size[%d][%d] = [%d][%d] : %u \n" ,time_calls , rows,cols,i,j, mpORBextractorLeft->mvImagePyramid[kpL.octave].at<uchar>(i,j));   
+                    }
+                }
+            }
 
             int bestDist = INT_MAX;
             int bestincR = 0;    // è il miglior spostamento della windows
