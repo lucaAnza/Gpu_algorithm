@@ -30,7 +30,6 @@ And explanation of the iterative algoritmh.
 
 <img src="img/sliding_window_explain.png" width=50% alt=""> </img>
 
-### opt1_simulation.cu![alt text](GPU_opt1_slidingWindow.png)
 
 #### Simulazione
 
@@ -109,7 +108,7 @@ std::vector<size_t> size_refer                  // Cuda Global Memory
 
 4.Riscrittura della funzione ```int ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b)``` trasformandola in una funzione `__device__`.
 
-- Funzione presente in <b>ORBmatcher.cc</b>
+
 - Funzione originale :
 
 ```c++
@@ -128,6 +127,28 @@ int ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b){
         }
 
         return dist;
+}
+```
+
+- Funzione presente in <b>ORBmatcher.cc</b> (trasformata per essere eseguibile su GPU)
+
+
+```c++
+__device__ int DescriptorDistance(const unsigned char *a, const unsigned char* b){
+
+    int dist=0;
+
+    const int32_t* a_int = reinterpret_cast<const int32_t*>(a);
+    const int32_t* b_int = reinterpret_cast<const int32_t*>(b);
+
+    for(int i=0; i<8; i++) {
+        unsigned int v = a_int[i] ^ b_int[i];
+        v = v - ((v >> 1) & 0x55555555);
+        v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
+        dist += (((v + (v >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
+    }
+
+    return dist;
 }
 ```
 <br><br>
