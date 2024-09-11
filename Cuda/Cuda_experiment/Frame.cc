@@ -47,7 +47,10 @@ void Frame::ComputeStereoMatches()
     const float minD = 0;
     const float maxD = mbf/minZ;
 
-
+    //ATTEMPT
+    //uchar* testArr = mpORBextractorLeft->getd_images();
+    //printf("DFSF= %u\n" , testArr[0]);
+    //printf("DFSF= %u\n" , testArr[1]);
     
     vector<int> best_dist_line_iL;  // (luke add)
     vector<size_t> best_dist_line_index_iL;  // (luke add)
@@ -130,7 +133,7 @@ void Frame::ComputeStereoMatches()
             cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
 
             //(luke_add) IF Created for debug (iL == -1 to disable debug)
-            if(iL < 4){
+            if(iL == 421 || iL == 422){
                 int rows = mpORBextractorLeft->mvImagePyramid[kpL.octave].size().height;
                 int cols = mpORBextractorLeft->mvImagePyramid[kpL.octave].size().width;
                 rows = 10; // FOR TESTING - original for should be from i -> rows

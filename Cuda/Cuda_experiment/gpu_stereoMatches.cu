@@ -148,7 +148,7 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
 }
 
 
-__global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images ,cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu){
+__global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_inputImage ,cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu){
 
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
@@ -181,17 +181,18 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
 
         //printf("{%d}GPU -> iL[%lu] octave = %d row = %d , col = %d , scale factor : %f new_rows = %u , new_cols =%u \n" , time_calls_gpu , index , kpL.octave ,  rows , cols , d_scaleFactor , new_rows , new_cols );
 
-        /*
+        
         //ERROR : Crash application understand why !
         //ERROR : Stampa sempre 0. Capire perchè. d_images è riempita correttamente?
         if(index == 2){
-            for (int i=0 ; i<rows ; i++){
-                for(int j=0 ; j<cols ; j++){
+            // first for (i<rows) second for (j<cols)
+            for (int i=0 ; i<10 ; i++){
+                for(int j=0 ; j<10 ; j++){
                     int index_of_piramid = (i*cols) + j;
-                    printf("{%d}GPU - mvImagePyramid[%d] -  array of size[%d][%d] = [%d][%d] : %u \n" , time_calls_gpu, kpL.octave , rows,cols,i,j, d_images[index_of_piramid]);  
+                    printf("{%d}GPU - mvImagePyramid[%d] -  array of size[%d][%d] = [%d][%d] : %u \n" , time_calls_gpu, kpL.octave , rows,cols,i,j, d_inputImage[index_of_piramid]);  
                 }
             }       
-        }*/
+        }
         
 
         /*for (int i=i_start ; i<i_final ; i++){
@@ -375,13 +376,42 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaMalloc(&miniumDist_gpu , sizeof(int) * N);
     cudaMalloc(&miniumDistIndex_gpu , sizeof(size_t) * N);
 
+    //Get - Pyramid-img[0] and Pyramid-img[>0]
+    int sizeOfdScaleImg = 950054;
+    uchar *h_images = new uchar[mpORBextractorLeft->getCols() * mpORBextractorLeft->getRows()];
+    uchar *h2_images = new uchar[sizeOfdScaleImg];
+    float *scaleFactors = new float[8];
+    cudaMemcpy(h_images, mpORBextractorLeft->getd_inputImage(), mpORBextractorLeft->getCols() * mpORBextractorLeft->getRows() * sizeof(uchar), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h2_images, mpORBextractorLeft->getd_images(), sizeOfdScaleImg * sizeof(uchar), cudaMemcpyDeviceToHost);
+    cudaMemcpy(scaleFactors, mpORBextractorLeft->getd_scaleFactor() , 8 * sizeof(float), cudaMemcpyDeviceToHost);
+
+
+    // CONTINUE FROM - HEREEEEE
+    // Problem here!!! -> point of Pyramid-img[>0] doesn't coindice!
+    int offset = 0;
+    int totalMemory = 0;
+    int cols = mpORBextractorLeft->getCols();
+    int rows = mpORBextractorLeft->getRows();
+    for (int i = 1; i < mpORBextractorLeft->GetLevels(); i++) {
+        float temp_scaleFactor = scaleFactors[i];  
+        int scaledCols = round(cols * 1/temp_scaleFactor);
+        int scaledRows = round(rows * 1/temp_scaleFactor);
+        int numPixels = scaledCols * scaledRows;      // Numero di pixel del livello i
+        totalMemory += numPixels;  // Aggiungi la memoria di questo livello al totale
+        printf("element 0,1 of liv %d = %u , %u ( scaledCols = %d  scaledRows = %d ) \n" , i , h2_images[offset] , h2_images[offset]+1 , scaledCols , scaledRows);
+        offset += numPixels;
+    }
+    printf("total = %d\n" , totalMemory);
+
+
+
     printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
     findMiniumDistance<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
     cudaDeviceSynchronize();
-    slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images() , mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
+    //slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , h_images , mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
     cudaDeviceSynchronize();
 
-
+    
 
     //Test - Test the accuracy of minium distance calculated by Gpu
     printf("partition_factor :%d , thorbdist : %d \n" , part_const , thOrbDist);
@@ -394,6 +424,7 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
 
     
     //Memory deallocation
+    delete[] h_images;
     cudaFree(mvKeys_gpu);
     cudaFree(mvKeysRight_gpu);
     cudaFree(mvInvScaleFactors_gpu);
