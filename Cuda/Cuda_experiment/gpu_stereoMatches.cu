@@ -346,6 +346,8 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
 
 
     //TODO -> Evitare di fare questo ciclo e di allocare vRowIndices_temp (spreco di memoria e tempo) OR eseguirlo in GPU
+    // vRowIndices is matrix of irregular vector
+    // the following code create 2 arrays (1. get n. elements of line(i) 2. get n. elements from 0->i )
     std::vector<size_t> vRowIndices_temp;
     std::vector<size_t> incremental_size_refer;
     incremental_size_refer.resize(size_refer.size());
