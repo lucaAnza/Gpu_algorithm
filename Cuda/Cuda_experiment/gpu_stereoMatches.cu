@@ -270,6 +270,29 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
 }
 
 
+void test_BestDistAccuracy( int *distanzeMinimeFromGpu , size_t *indici_distanzeMinimeFromGpu , std::vector<int> best_dists , std::vector<size_t> best_dists_index , int time_calls , int N ){
+
+    printf("{%d}Stampa delle distanze minime e degli indici: \n" , time_calls);
+    int cont_valori=0;
+    int cont_indici=0;
+    for(int i=0 ; i<N ; i++){
+        printf("{%d} %d : GPU -> %d[iR=%lu] , CPU -> %d[iR=%lu]" , time_calls ,  i , distanzeMinimeFromGpu[i] , indici_distanzeMinimeFromGpu[i] , best_dists[i] , best_dists_index[i]);
+        if(distanzeMinimeFromGpu[i] == best_dists[i])
+            cont_valori++;
+        else
+            printf("  ***");
+        if(indici_distanzeMinimeFromGpu[i] == best_dists_index[i])
+            cont_indici++;
+        else printf("  XXX ");
+        
+        printf("\n");
+    }
+    printf("{%d} Percentuale somiglianza valori : %f%% \n" , time_calls , ((float)cont_valori / (float)N) * 100);
+    printf("{%d} Percentuale somiglianza indici : %f%% \n\n\n\n" , time_calls , ((float)cont_indici / (float)N) * 100);
+
+}
+
+
 
 
 void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::ORBextractor *mpORBextractorRight , int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist ,cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
@@ -353,42 +376,25 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaMalloc(&miniumDist_gpu , sizeof(int) * N);
     cudaMalloc(&miniumDistIndex_gpu , sizeof(size_t) * N);
 
-
     printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
     findMiniumDistance<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
     cudaDeviceSynchronize();
-    slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images() , mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
+    //slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images() , mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
     cudaDeviceSynchronize();
 
-    //Test - Functionality of minium distance
+
+
+    //Test - Test the accuracy of minium distance calculated by Gpu
     printf("partition_factor :%d , thorbdist : %d \n" , part_const , thOrbDist);
     int distanzeMinime[N];
     size_t distanzeMinimeIndici[N];
     cudaMemcpy(distanzeMinime, miniumDist_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
     cudaMemcpy(distanzeMinimeIndici, miniumDistIndex_gpu, sizeof(size_t) * N, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
+    test_BestDistAccuracy(distanzeMinime , distanzeMinimeIndici , best_dists , best_dists_index , time_calls , N);
 
     
-    printf("{%d}Stampa delle distanze minime e degli indici: \n" , time_calls);
-    int cont_valori=0;
-    int cont_indici=0;
-    for(int i=0 ; i<N ; i++){
-        printf("{%d} %d : GPU -> %d[iR=%lu] , CPU -> %d[iR=%lu]" , time_calls ,  i , distanzeMinime[i] , distanzeMinimeIndici[i] , best_dists[i] , best_dists_index[i]);
-        if(distanzeMinime[i] == best_dists[i])
-            cont_valori++;
-        else
-            printf("  ***");
-        if(distanzeMinimeIndici[i] == best_dists_index[i])
-            cont_indici++;
-        else printf("  XXX ");
-        
-        printf("\n");
-    }
-    printf("{%d} Percentuale somiglianza valori : %f%% \n" , time_calls , ((float)cont_valori / (float)N) * 100);
-    printf("{%d} Percentuale somiglianza indici : %f%% \n\n\n\n" , time_calls , ((float)cont_indici / (float)N) * 100);
-
-    
-    //Deallocazione della memoria
+    //Memory deallocation
     cudaFree(mvKeys_gpu);
     cudaFree(mvKeysRight_gpu);
     cudaFree(mvInvScaleFactors_gpu);
