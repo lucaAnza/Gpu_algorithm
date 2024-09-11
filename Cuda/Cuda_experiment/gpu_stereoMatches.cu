@@ -152,7 +152,7 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
 
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
-    size_t index = (b_id * blockDim.x) + id;
+    size_t index = (b_id * blockDim.x) + id;  // Index is iL of CPU function (iL [0 -> 2026])
 
     if(miniumDist_gpu[index] < thOrbDist_gpu ){  //if(bestDist<thOrbDist)
 
@@ -168,28 +168,31 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
         // sliding window search
         const int w = 5;
 
+        // The focus now is to transform this ⤋⤋⤋ in a standard arrays
+        //cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
         int i_start = scaledvL-w;
         int i_final = scaledvL+w+1;
         int j_start = scaleduL-w;
         int j_final = scaleduL+w+1;
 
-        //Substitute of { mpORBextractorLeft->mvImagePyramid[kpL.octave] } 
-        const float d_scaleFactor = scaleFactors[kpL.octave]; 
+        const float d_scaleFactor = scaleFactors[kpL.octave];  //Substitute of { mpORBextractorLeft->mvImagePyramid[kpL.octave] } 
         const uint new_rows = round(rows * 1/d_scaleFactor);
         const uint new_cols = round(cols * 1/d_scaleFactor);
 
-        //printf("GPU -> iL[%lu] octave = %d row = %d , col = %d , scale factor : %f new_rows = %u , new_cols =%u \n" , index , kpL.octave ,  rows , cols , d_scaleFactor , new_rows , new_cols );
+        //printf("{%d}GPU -> iL[%lu] octave = %d row = %d , col = %d , scale factor : %f new_rows = %u , new_cols =%u \n" , time_calls_gpu , index , kpL.octave ,  rows , cols , d_scaleFactor , new_rows , new_cols );
 
-
+        /*
+        //ERROR : Crash application understand why !
         //ERROR : Stampa sempre 0. Capire perchè. d_images è riempita correttamente?
-        if(index == 1){
+        if(index == 2){
             for (int i=0 ; i<rows ; i++){
                 for(int j=0 ; j<cols ; j++){
                     int index_of_piramid = (i*cols) + j;
-                    printf("{%d}GPU array of size[%d][%d] = [%d][%d] : %u \n" , time_calls_gpu, rows,cols,i,j, d_images[index_of_piramid]);  
+                    printf("{%d}GPU - mvImagePyramid[%d] -  array of size[%d][%d] = [%d][%d] : %u \n" , time_calls_gpu, kpL.octave , rows,cols,i,j, d_images[index_of_piramid]);  
                 }
             }       
-        }
+        }*/
+        
 
         /*for (int i=i_start ; i<i_final ; i++){
             for(int j=j_start ; j<j_final ; j++){
@@ -198,13 +201,7 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             printf("\n");
         }*/
 
-        //mpORBextractorLeft->d_inputImageBlured
-        //cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
 
-
-
-
-        
         /*
 
         CONTINUE FROM HERE...
@@ -381,7 +378,7 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
     findMiniumDistance<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
     cudaDeviceSynchronize();
-    //slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images() , mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
+    slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images() , mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
     cudaDeviceSynchronize();
 
 
@@ -393,7 +390,7 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaMemcpy(distanzeMinime, miniumDist_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
     cudaMemcpy(distanzeMinimeIndici, miniumDistIndex_gpu, sizeof(size_t) * N, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
-    test_BestDistAccuracy(distanzeMinime , distanzeMinimeIndici , best_dists , best_dists_index , time_calls , N);
+    //test_BestDistAccuracy(distanzeMinime , distanzeMinimeIndici , best_dists , best_dists_index , time_calls , N);
 
     
     //Memory deallocation

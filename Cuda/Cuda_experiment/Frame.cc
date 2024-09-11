@@ -116,7 +116,7 @@ void Frame::ComputeStereoMatches()
         // Subpixel match by correlation
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
         {   
-            printf("iL = %d kpl.octave : %d , size of the piramid : h=%d , w=%d \n" , iL , kpL.octave , mpORBextractorLeft->mvImagePyramid[kpL.octave].size().height , mpORBextractorLeft->mvImagePyramid[kpL.octave].size().width);
+            printf("{%d}CPU iL = %d kpl.octave : %d , size of the piramid : h=%d , w=%d \n" , time_calls ,iL , kpL.octave , mpORBextractorLeft->mvImagePyramid[kpL.octave].size().height , mpORBextractorLeft->mvImagePyramid[kpL.octave].size().width);
             // coordinates in image pyramid at keypoint scale
             const float uR0 = mvKeysRight[bestIdxR].pt.x;        // Prende il valore della x del miglior candidato tra i KeyPoint_Right
             const float scaleFactor = mvInvScaleFactors[kpL.octave];   // Ottiene la scaleFactor da KeyPoint_Left
@@ -129,17 +129,19 @@ void Frame::ComputeStereoMatches()
             // Estrae una sottomatrice per il KeyPoint_Left
             cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
 
-            //(luke_add) ALL IF
-            if(iL == 1){
+            //(luke_add) IF Created for debug (iL == -1 to disable debug)
+            if(iL < 4){
                 int rows = mpORBextractorLeft->mvImagePyramid[kpL.octave].size().height;
                 int cols = mpORBextractorLeft->mvImagePyramid[kpL.octave].size().width;
+                rows = 10; // FOR TESTING - original for should be from i -> rows
+                cols = 10; // FOR TESTING - original for should be from j -> cols
                 for (int i=0 ; i<rows ; i++){
                     for(int j=0 ; j<cols ; j++){
                         int index = (i*cols) + j;
-                        printf("{%d}CPU - array of size[%d][%d] = [%d][%d] : %u \n" ,time_calls , rows,cols,i,j, mpORBextractorLeft->mvImagePyramid[kpL.octave].at<uchar>(i,j));   
+                        printf("{%d}\tCPU - iL[%d] - mvImagePyramid[%d] array of size[%d][%d] = [%d][%d] : %u \n" ,time_calls , iL , kpL.octave , rows,cols,i,j, mpORBextractorLeft->mvImagePyramid[kpL.octave].at<uchar>(i,j));   
                     }
                 }
-            }
+            } //////// Finish IF debug
 
             int bestDist = INT_MAX;
             int bestincR = 0;    // è il miglior spostamento della windows
