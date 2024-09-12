@@ -148,17 +148,17 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
 }
 
 
-__global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_inputImage ,cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu){
+__global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images  , uchar *d_inputImage ,cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu){
 
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
-    size_t index = (b_id * blockDim.x) + id;  // Index is iL of CPU function (iL [0 -> 2026])
+    size_t iL = (b_id * blockDim.x) + id;  // Index is iL of CPU function (iL [0 -> 2026])
 
-    if(miniumDist_gpu[index] < thOrbDist_gpu ){  //if(bestDist<thOrbDist)
+    if(miniumDist_gpu[iL] < thOrbDist_gpu ){  //if(bestDist<thOrbDist)
 
         // coordinates in image pyramid at keypoint scale
-        const cv::KeyPoint &kpL = mvKeys_gpu[index];
-        size_t bestIdxR = miniumDistIndex_gpu[index];
+        const cv::KeyPoint &kpL = mvKeys_gpu[iL];
+        size_t bestIdxR = miniumDistIndex_gpu[iL];
         const float uR0 = mvKeysRight_gpu[bestIdxR].pt.x;        
         const float scaleFactor = mvInvScaleFactors_gpu[kpL.octave];   
         const float scaleduL = round(kpL.pt.x*scaleFactor);     
@@ -182,14 +182,21 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
         //printf("{%d}GPU -> iL[%lu] octave = %d row = %d , col = %d , scale factor : %f new_rows = %u , new_cols =%u \n" , time_calls_gpu , index , kpL.octave ,  rows , cols , d_scaleFactor , new_rows , new_cols );
 
         
-        //ERROR : Crash application understand why !
-        //ERROR : Stampa sempre 0. Capire perchè. d_images è riempita correttamente?
-        if(index == 2){
-            // first for (i<rows) second for (j<cols)
-            for (int i=0 ; i<10 ; i++){
-                for(int j=0 ; j<10 ; j++){
-                    int index_of_piramid = (i*cols) + j;
-                    printf("{%d}GPU - mvImagePyramid[%d] -  array of size[%d][%d] = [%d][%d] : %u \n" , time_calls_gpu, kpL.octave , rows,cols,i,j, d_inputImage[index_of_piramid]);  
+        // Print all pixel of the level
+        int level = kpL.octave;
+        int offset_level = (rows * cols) * level;
+        uchar *imgPyramid;
+        if(iL == 421){
+            if(level == 0){
+                imgPyramid = d_inputImage;
+            }else{
+                imgPyramid = d_images;
+            }
+
+            for (int i=0 ; i<new_rows ; i++){
+                for(int j=0 ; j<new_cols ; j++){
+                    int index_of_piramid = ( (i*cols) + j ) + offset_level;
+                    printf("{%d}GPU - mvImagePyramid[%d] -  array of size[%d][%d] = [%d][%d] : %u \n" , time_calls_gpu, kpL.octave , rows,cols, i, j, imgPyramid[index_of_piramid]);  
                 }
             }       
         }
@@ -396,8 +403,8 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
         float temp_scaleFactor = scaleFactors[i];  
         int scaledCols = round(cols * 1/temp_scaleFactor);
         int scaledRows = round(rows * 1/temp_scaleFactor);
-        int numPixels = scaledCols * scaledRows;      // Numero di pixel del livello i
-        totalMemory += numPixels;  // Aggiungi la memoria di questo livello al totale
+        int numPixels = scaledCols * scaledRows;    // Number of pixels of livel i 
+        totalMemory += numPixels;  
         printf("element 0,1 of liv %d = %u , %u ( scaledCols = %d  scaledRows = %d ) \n" , i , h2_images[offset] , h2_images[offset]+1 , scaledCols , scaledRows);
         offset += numPixels;
     }
@@ -408,7 +415,7 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
     findMiniumDistance<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
     cudaDeviceSynchronize();
-    //slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , h_images , mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
+    slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images(), mpORBextractorLeft->getd_inputImage() , mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
     cudaDeviceSynchronize();
 
     
@@ -425,6 +432,7 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     
     //Memory deallocation
     delete[] h_images;
+    delete[] h2_images;
     cudaFree(mvKeys_gpu);
     cudaFree(mvKeysRight_gpu);
     cudaFree(mvInvScaleFactors_gpu);
