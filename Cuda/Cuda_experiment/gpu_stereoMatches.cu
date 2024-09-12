@@ -30,7 +30,8 @@ __constant__  int mDescriptors_gpu_cols;
 __constant__  int partition_factor;      //each block analize <partition_factor> line element of mDescriptor
 __constant__  int mDescriptors_gpu_lines;    
 __constant__  int time_calls_gpu;   // count of number of call by ComputeStereoMatches   
-__constant__  int thOrbDist_gpu;   // count of number of call by ComputeStereoMatches  
+__constant__  int thOrbDist_gpu;   // count of number of call by ComputeStereoMatches 
+__constant__  int L_gpu; 
 
 
 // Funzione che calcola la distanza tra 2 vettori
@@ -148,8 +149,9 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
 }
 
 
-__global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images  , uchar *d_inputImage ,cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu){
+__global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images  , uchar *d_inputImage , int rows_r , int cols_r , float *scaleFactorsRight, cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu){
 
+    extern __shared__ float vDists[];
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
     size_t iL = (b_id * blockDim.x) + id;  // Index is iL of CPU function (iL [0 -> 2026])
@@ -176,13 +178,17 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
         int j_final = scaleduL+w+1;
 
         const float d_scaleFactor = scaleFactors[kpL.octave];  //Substitute of { mpORBextractorLeft->mvImagePyramid[kpL.octave] } 
+        const float d_scaleFactorRight = scaleFactorsRight[kpL.octave]; 
         const uint new_rows = round(rows * 1/d_scaleFactor);
         const uint new_cols = round(cols * 1/d_scaleFactor);
+        const uint new_rows_r  = round(rows_r * 1/d_scaleFactorRight);
+        const uint new_cols_r = round(cols_r * 1/d_scaleFactorRight);
 
         //printf("{%d}GPU -> iL[%lu] octave = %d row = %d , col = %d , scale factor : %f new_rows = %u , new_cols =%u \n" , time_calls_gpu , index , kpL.octave ,  rows , cols , d_scaleFactor , new_rows , new_cols );
 
         
         // Print all pixel of the level
+        /*
         int level = kpL.octave;
         int offset_level = (rows * cols) * level;
         uchar *imgPyramid;
@@ -199,7 +205,7 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
                     printf("{%d}GPU - mvImagePyramid[%d] -  array of size[%d][%d] = [%d][%d] : %u \n" , time_calls_gpu, kpL.octave , rows,cols, i, j, imgPyramid[index_of_piramid]);  
                 }
             }       
-        }
+        }*/
         
 
         /*for (int i=i_start ; i<i_final ; i++){
@@ -210,22 +216,22 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
         }*/
 
 
-        /*
-
-        CONTINUE FROM HERE...
-
         int bestDist = INT_MAX;
         int bestincR = 0;    // è il miglior spostamento della windows
-        const int L = 5;
-        vector<float> vDists;  // ha le distanze tra le finestre nelle immagini sx e dx per ogni possibile spostamento nell'intervallo da -L a +L
-        vDists.resize(2*L+1);
+
+        // const int L = 5;   // Already on GPU constant_memory
+        // vector<float> vDists;  // Save on shared_memory
+        // vDists.resize(2*L+1);  // Allocated on sliding_window call
 
         // calcolano i limiti della finestra scorrevole nella quale verrà effettuata la ricerca dei punti
-        const float iniu = scaleduR0+L-w;       
-        const float endu = scaleduR0+L+w+1;
-        if(iniu<0 || endu >= mpORBextractorRight->mvImagePyramid[kpL.octave].cols)   // per evitare di uscire dai range
-            continue;
+        const float iniu = scaleduR0+L_gpu-w;       
+        const float endu = scaleduR0+L_gpu+w+1;
 
+
+        if(iniu<0 || endu >= new_cols_r )   // per evitare di uscire dai range
+            return;
+
+        /*
         // Si cerca il migliore incremento e la migliore distanza
         for(int incR=-L; incR<=+L; incR++)
         {
@@ -411,11 +417,17 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     printf("total = %d\n" , totalMemory);
 
 
+    //Pre-allocation for sliding window
+    const int L = 5;
+    cudaMemcpyToSymbol(L_gpu, &L, 1 * sizeof(int));
+    int vDistsSize = (2*L+1);
+
 
     printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
     findMiniumDistance<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
     cudaDeviceSynchronize();
-    slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images(), mpORBextractorLeft->getd_inputImage() , mvKeys_gpu,mvKeysRight_gpu,mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
+    slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD , vDistsSize>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images(), mpORBextractorLeft->getd_inputImage() , 
+                                                                   mpORBextractorRight->getRows() , mpORBextractorRight->getCols() , mpORBextractorRight->getd_scaleFactor(), mvKeys_gpu,mvKeysRight_gpu, mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
     cudaDeviceSynchronize();
 
     
