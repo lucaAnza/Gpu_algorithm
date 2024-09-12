@@ -113,13 +113,14 @@ void Frame::ComputeStereoMatches()
         }
 
         //printf("{%d} [CPU] Distanza minimima della linea iL(%d) = %d\n" , time_calls , iL , bestDist);
+        // Add this array for testing the accuracy on GPU
         best_dist_line_iL.push_back(bestDist);
         best_dist_line_index_iL.push_back(bestIdxR);
 
         // Subpixel match by correlation
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
         {   
-            printf("{%d}CPU iL = %d kpl.octave : %d , size of the piramid : h=%d , w=%d \n" , time_calls ,iL , kpL.octave , mpORBextractorLeft->mvImagePyramid[kpL.octave].size().height , mpORBextractorLeft->mvImagePyramid[kpL.octave].size().width);
+            //printf("{%d}CPU iL = %d kpl.octave : %d , size of the piramid : h=%d , w=%d \n" , time_calls ,iL , kpL.octave , mpORBextractorLeft->mvImagePyramid[kpL.octave].size().height , mpORBextractorLeft->mvImagePyramid[kpL.octave].size().width);
             // coordinates in image pyramid at keypoint scale
             const float uR0 = mvKeysRight[bestIdxR].pt.x;        // Prende il valore della x del miglior candidato tra i KeyPoint_Right
             const float scaleFactor = mvInvScaleFactors[kpL.octave];   // Ottiene la scaleFactor da KeyPoint_Left
@@ -132,8 +133,9 @@ void Frame::ComputeStereoMatches()
             // Estrae una sottomatrice per il KeyPoint_Left
             cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
 
+            /*
             //(luke_add) IF Created for debug (iL == -1 to disable debug)
-            if(iL == 421 || iL == 422){
+            if(iL == 421 || iL == 422 | iL == 899 | iL == 900 | iL == 3 | iL == 4){
                 int rows = mpORBextractorLeft->mvImagePyramid[kpL.octave].size().height;
                 int cols = mpORBextractorLeft->mvImagePyramid[kpL.octave].size().width;
                 rows = 10; // FOR TESTING - original for should be from i -> rows
@@ -145,6 +147,7 @@ void Frame::ComputeStereoMatches()
                     }
                 }
             } //////// Finish IF debug
+            */
 
             int bestDist = INT_MAX;
             int bestincR = 0;    // è il miglior spostamento della windows
@@ -153,8 +156,16 @@ void Frame::ComputeStereoMatches()
             vDists.resize(2*L+1);
 
             // calcolano i limiti della finestra scorrevole nella quale verrà effettuata la ricerca dei punti
+
+            
+
             const float iniu = scaleduR0+L-w;       
             const float endu = scaleduR0+L+w+1;
+
+            //printf("{%d}CPU iL[%d] PRE-FILTER iniu = %f , endu = %f FILTER = %u \n" , time_calls , iL , iniu , endu , mpORBextractorRight->mvImagePyramid[kpL.octave].cols) ;
+
+            printf("scaledvL = %f , scaleduR0 = %f \n" ,scaledvL , scaleduR0);
+
             if(iniu<0 || endu >= mpORBextractorRight->mvImagePyramid[kpL.octave].cols)   // per evitare di uscire dai range
                 continue;
 

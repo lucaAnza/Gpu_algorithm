@@ -32,6 +32,7 @@ __constant__  int mDescriptors_gpu_lines;
 __constant__  int time_calls_gpu;   // count of number of call by ComputeStereoMatches   
 __constant__  int thOrbDist_gpu;   // count of number of call by ComputeStereoMatches 
 __constant__  int L_gpu; 
+__constant__  int w_gpu;
 
 
 // Funzione che calcola la distanza tra 2 vettori
@@ -151,7 +152,7 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
 
 __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images  , uchar *d_inputImage , int rows_r , int cols_r , float *scaleFactorsRight, cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu){
 
-    extern __shared__ float vDists[];
+    extern __shared__ float vDists[];  // TODO -> VA UTILIZZATA ANCHE PER SALVARE IL SUB-MATRIX
     size_t id = threadIdx.x;    // Each thread rappresent one element
     size_t b_id = blockIdx.x;   // Each block rappresent one row
     size_t iL = (b_id * blockDim.x) + id;  // Index is iL of CPU function (iL [0 -> 2026])
@@ -167,17 +168,17 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
         const float scaledvL = round(kpL.pt.y*scaleFactor);     
         const float scaleduR0 = round(uR0*scaleFactor);         
 
-        // sliding window search
-        const int w = 5;
+        
+        // const int w = 5; // save on constant memory GPU
 
         // The focus now is to transform this ⤋⤋⤋ in a standard arrays
         //cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
-        int i_start = scaledvL-w;
-        int i_final = scaledvL+w+1;
-        int j_start = scaleduL-w;
-        int j_final = scaleduL+w+1;
+        int i_start = scaledvL-w_gpu;
+        int i_final = scaledvL+w_gpu+1;
+        int j_start = scaleduL-w_gpu;
+        int j_final = scaleduL+w_gpu+1;
 
-        const float d_scaleFactor = scaleFactors[kpL.octave];  //Substitute of { mpORBextractorLeft->mvImagePyramid[kpL.octave] } 
+        const float d_scaleFactor = scaleFactors[kpL.octave];  
         const float d_scaleFactorRight = scaleFactorsRight[kpL.octave]; 
         const uint new_rows = round(rows * 1/d_scaleFactor);
         const uint new_cols = round(cols * 1/d_scaleFactor);
@@ -186,7 +187,6 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
 
         //printf("{%d}GPU -> iL[%lu] octave = %d row = %d , col = %d , scale factor : %f new_rows = %u , new_cols =%u \n" , time_calls_gpu , index , kpL.octave ,  rows , cols , d_scaleFactor , new_rows , new_cols );
 
-        
         // Print all pixel of the level
         /*
         int level = kpL.octave;
@@ -224,12 +224,16 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
         // vDists.resize(2*L+1);  // Allocated on sliding_window call
 
         // calcolano i limiti della finestra scorrevole nella quale verrà effettuata la ricerca dei punti
-        const float iniu = scaleduR0+L_gpu-w;       
-        const float endu = scaleduR0+L_gpu+w+1;
+        const float iniu = scaleduR0+L_gpu-w_gpu;       
+        const float endu = scaleduR0+L_gpu+w_gpu+1;
 
 
         if(iniu<0 || endu >= new_cols_r )   // per evitare di uscire dai range
             return;
+
+
+        // CONTINUE FROM HERE
+        // NOW YOU HAVE TO CALCULATE NORM1 -> USE : cublas<t>asum() , cublas<t>copy() , cublas<t>axpy()
 
         /*
         // Si cerca il migliore incremento e la migliore distanza
@@ -389,38 +393,12 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaMalloc(&miniumDist_gpu , sizeof(int) * N);
     cudaMalloc(&miniumDistIndex_gpu , sizeof(size_t) * N);
 
-    //Get - Pyramid-img[0] and Pyramid-img[>0]
-    int sizeOfdScaleImg = 950054;
-    uchar *h_images = new uchar[mpORBextractorLeft->getCols() * mpORBextractorLeft->getRows()];
-    uchar *h2_images = new uchar[sizeOfdScaleImg];
-    float *scaleFactors = new float[8];
-    cudaMemcpy(h_images, mpORBextractorLeft->getd_inputImage(), mpORBextractorLeft->getCols() * mpORBextractorLeft->getRows() * sizeof(uchar), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h2_images, mpORBextractorLeft->getd_images(), sizeOfdScaleImg * sizeof(uchar), cudaMemcpyDeviceToHost);
-    cudaMemcpy(scaleFactors, mpORBextractorLeft->getd_scaleFactor() , 8 * sizeof(float), cudaMemcpyDeviceToHost);
-
-
-    // CONTINUE FROM - HEREEEEE
-    // Problem here!!! -> point of Pyramid-img[>0] doesn't coindice!
-    int offset = 0;
-    int totalMemory = 0;
-    int cols = mpORBextractorLeft->getCols();
-    int rows = mpORBextractorLeft->getRows();
-    for (int i = 1; i < mpORBextractorLeft->GetLevels(); i++) {
-        float temp_scaleFactor = scaleFactors[i];  
-        int scaledCols = round(cols * 1/temp_scaleFactor);
-        int scaledRows = round(rows * 1/temp_scaleFactor);
-        int numPixels = scaledCols * scaledRows;    // Number of pixels of livel i 
-        totalMemory += numPixels;  
-        printf("element 0,1 of liv %d = %u , %u ( scaledCols = %d  scaledRows = %d ) \n" , i , h2_images[offset] , h2_images[offset]+1 , scaledCols , scaledRows);
-        offset += numPixels;
-    }
-    printf("total = %d\n" , totalMemory);
-
-
     //Pre-allocation for sliding window
     const int L = 5;
+    const int w = 5; //sliding windows_search
     cudaMemcpyToSymbol(L_gpu, &L, 1 * sizeof(int));
-    int vDistsSize = (2*L+1);
+    cudaMemcpyToSymbol(w_gpu, &w, 1 * sizeof(int));
+    int vDistsSize = (2*L+1);  // TO DO -> FARE IN MODO DI CREARE UN ARRAY CONTENTE SIA VDIST CHE LA MATRICE SUB
 
 
     printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
@@ -443,8 +421,6 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
 
     
     //Memory deallocation
-    delete[] h_images;
-    delete[] h2_images;
     cudaFree(mvKeys_gpu);
     cudaFree(mvKeysRight_gpu);
     cudaFree(mvInvScaleFactors_gpu);
