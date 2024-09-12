@@ -163,8 +163,7 @@ void Frame::ComputeStereoMatches()
             const float endu = scaleduR0+L+w+1;
 
             //printf("{%d}CPU iL[%d] PRE-FILTER iniu = %f , endu = %f FILTER = %u \n" , time_calls , iL , iniu , endu , mpORBextractorRight->mvImagePyramid[kpL.octave].cols) ;
-
-            printf("scaledvL = %f , scaleduR0 = %f \n" ,scaledvL , scaleduR0);
+            //printf("scaledvL = %f , scaleduR0 = %f \n" ,scaledvL , scaleduR0);
 
             if(iniu<0 || endu >= mpORBextractorRight->mvImagePyramid[kpL.octave].cols)   // per evitare di uscire dai range
                 continue;
@@ -173,7 +172,33 @@ void Frame::ComputeStereoMatches()
             for(int incR=-L; incR<=+L; incR++)
             {
                 cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
+
+
+                if(iL == 3){
+                    printf("{%d} comparison iL = 3 incR = %d: \n" , time_calls ,incR);
+                    for (int i = 0; i < IL.rows; ++i) {
+                        for (int j = 0; j < IL.cols; ++j) {
+                            // Se l'immagine è a 1 canale (grayscale)
+                            if (IL.channels() == 1) {
+                                std::cout << (int)IL.at<uchar>(i, j) << "-";
+                                std::cout << (int)IR.at<uchar>(i, j) << " ";
+                            }
+                            // Se l'immagine è a 3 canali (RGB)
+                            else if (IL.channels() == 3) {
+                                cv::Vec3b pixel = IL.at<cv::Vec3b>(i, j);
+                                std::cout << "(" << (int)pixel[0] << ", " << (int)pixel[1] << ", " << (int)pixel[2] << ") ";
+                            }
+                        }
+                        std::cout << std::endl;
+                    }
+                }
+
+
                 float dist = cv::norm(IL,IR,cv::NORM_L1);   // Esegue la norma1 tra la finestra_sx e la finestra_dx
+                
+                if(iL == 3)
+                    printf("CPU {%d} incr(%d) norma1 = %f\n" , time_calls , incR , dist);
+
                 if(dist<bestDist)
                 {
                     bestDist =  dist;

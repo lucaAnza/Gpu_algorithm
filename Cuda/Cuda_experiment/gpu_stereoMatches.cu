@@ -60,7 +60,7 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
                         , size_t *size_refer_gpu  , size_t *incremental_size_refer_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu ) {
     
     size_t id = threadIdx.x;    // Each thread rappresent one element
-    size_t b_id = blockIdx.x;   // Each block rappresent one row
+    size_t b_id = blockIdx.x;   // Each block rappresent n (n = partion_factor) row
     __shared__ int miniumDistShared[MAX_PARTITION_FACTOR]; 
     //__shared__ size_t miniumDistIndexShared[MAX_PARTITION_FACTOR];
 
@@ -149,12 +149,20 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
 
 }
 
+__device__ float norm1(const uchar *IL_u , const uchar *IR_u , float* IL , float* IR ){
 
-__global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images  , uchar *d_inputImage , int rows_r , int cols_r , float *scaleFactorsRight, cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu , uchar *IL){
+    //TODO - Remember this a sequential function
 
-    extern __shared__ float vDists[];  // TODO -> VA UTILIZZATA ANCHE PER SALVARE IL SUB-MATRIX
-    size_t id = threadIdx.x;    // Each thread rappresent one element
-    size_t b_id = blockIdx.x;   // Each block rappresent one row
+    return 1.0;
+
+}
+
+
+__global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images  , uchar *d_inputImage , int rows_r , int cols_r , float *scaleFactorsRight, uchar *d_imagesR , uchar *d_inputImageR ,cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu , float *IL , float *IR){
+
+    extern __shared__ float vDists[];  
+    size_t id = threadIdx.x;   
+    size_t b_id = blockIdx.x;   
     size_t iL = (b_id * blockDim.x) + id;  // Index is iL of CPU function (iL [0 -> 2026])
 
     if(miniumDist_gpu[iL] < thOrbDist_gpu ){  //if(bestDist<thOrbDist)
@@ -208,24 +216,6 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             }       
         }*/
         
-        if(iL == 3){
-            int level = kpL.octave;
-            int offset_level = (rows * cols) * level;
-            uchar *imgPyramid;
-            if(level == 0){
-                imgPyramid = d_inputImage;
-            }else{
-                imgPyramid = d_images;
-            }
-            //printf("LI iL(3) : \n");
-            for (int i=i_startIL ; i<i_finalIL; i++){
-                for(int j=j_startIL ; j<j_finalIL ; j++){
-                    int index = j + (i * new_cols) + offset_level;
-                    //printf("GPU {%d} element[%d][%d]%u \n" , time_calls_gpu , i - i_startIL , j - j_startIL ,imgPyramid[index] );
-                }
-            }
-        }
-
 
         int bestDist = INT_MAX;
         int bestincR = 0;    // è il miglior spostamento della windows
@@ -243,16 +233,69 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             return;
 
         
+        // TODO -> POSSIBILE CREAZIONE DI FUNZIONE CUDA CHE ESEGUE LA NORMAL1 IN QUESTO CICLO
+        for(int incR=-L_gpu; incR<=+L_gpu; incR++){
+            
+            //cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
+            int i_startIR = scaledvL-w_gpu;
+            int i_finalIR = scaledvL+w_gpu+1;
+            int j_startIR = scaleduR0+incR-w_gpu;
+            int j_finalIR = scaleduR0+incR+w_gpu+1;
 
-        // CONTINUE FROM HERE
-        // NOW YOU HAVE TO CALCULATE NORM1 -> USE : cublas<t>asum() , cublas<t>copy() , cublas<t>axpy()
+            //float dist = cv::norm(IL,IR,cv::NORM_L1);   // Esegue la norma1 tra la finestra_sx e la finestra_dx
+            // Sostituto con ⤋⤋⤋
 
-        /*
-        // Si cerca il migliore incremento e la migliore distanza
-        for(int incR=-L; incR<=+L; incR++)
-        {
-            cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
-            float dist = cv::norm(IL,IR,cv::NORM_L1);   // Esegue la norma1 tra la finestra_sx e la finestra_dx
+            /* FOR GPU - ATTEMPT2 
+            if(iL == 3 ){
+                int level = kpL.octave;
+                int offset_level = (rows * cols) * level;
+                int offset_levelR = (rows_r * cols_r) * level;
+                int size = (w_gpu*2)+1;
+                int block_dim = 16;
+                uchar *imgPyramid , *imgPyramidRight;
+                if(level == 0){
+                    imgPyramid = d_inputImage;
+                    imgPyramidRight = d_inputImageR;
+                }else{
+                    imgPyramid = d_images;
+                    imgPyramidRight = d_imagesR;
+                }
+                const unsigned char *IL_u =  (imgPyramid + (((i_startIL * new_cols)+j_startIL) + offset_level)  );
+                const unsigned char *IR_u =  (imgPyramidRight + (((i_startIR * new_cols_r)+j_startIR) + offset_levelR ) );
+                norm1<<<size/block_dim , block_dim >>>( IL_u , IR_u , IL , IR );
+            }
+            */
+            
+            /* FOR GPU - ATTEMPT1
+            if(iL == 3){
+                int level = kpL.octave;
+                int offset_level = (rows * cols) * level;
+                int offset_levelR = (rows_r * cols_r) * level;
+                uchar *imgPyramid , *imgPyramidRight;
+                if(level == 0){
+                    imgPyramid = d_inputImage;
+                    imgPyramidRight = d_inputImageR;
+                }else{
+                    imgPyramid = d_images;
+                    imgPyramidRight = d_imagesR;
+                }
+                float norma = 0;
+                for (int i=i_startIL , ir = i_startIR  ; i<i_finalIL; i++ , ir++){
+                    for(int j=j_startIL , jr = j_startIR; j<j_finalIL ; j++ , jr++){
+                        int index = j + (i * new_cols) + offset_level;
+                        int indexR = jr + (ir * new_cols_r) + offset_levelR;
+                        //printf("GPU {%d} inc(%d) element[%d][%d] = %u - %u \n" , time_calls_gpu ,  incR , i - i_startIL , j - j_startIL ,imgPyramid[index] , imgPyramidRight[indexR]);
+                        float f1 = (float) imgPyramid[index];
+                        float f2 = (float) imgPyramidRight[indexR];
+                        float f3 = abs(f1-f2);
+                        printf("GPU {%d} inc(%d) f1,f2,f3 = %f,%f,%f\n" , time_calls_gpu , incR , f1 , f2 , f3);
+                    }
+                }
+                
+            }
+            */
+
+            /*
             if(dist<bestDist)
             {
                 bestDist =  dist;
@@ -260,8 +303,12 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             }
 
             vDists[L+incR] = dist;
+            */
+            
         }
 
+        
+        /*
         if(bestincR==-L || bestincR==L)
             continue;
 
@@ -411,8 +458,9 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaMemcpyToSymbol(L_gpu, &L, 1 * sizeof(int));
     cudaMemcpyToSymbol(w_gpu, &w, 1 * sizeof(int));
     int vDistsSize = (2*L+1);  // TO DO -> FARE IN MODO DI CREARE UN ARRAY CONTENTE SIA VDIST CHE LA MATRICE SUB
-    uchar *IL;
-    cudaMalloc(&IL , sizeof(uchar) * sizeof(char) * (w*2) + 1 );
+    float *IL,*IR;
+    cudaMalloc(&IL , sizeof(float) * (w*2) + 1 );
+    cudaMalloc(&IR , sizeof(float) * (w*2) + 1 );
 
 
 
@@ -420,7 +468,8 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     findMiniumDistance<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
     cudaDeviceSynchronize();
     slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD , vDistsSize>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images(), mpORBextractorLeft->getd_inputImage() , 
-                                                                   mpORBextractorRight->getRows() , mpORBextractorRight->getCols() , mpORBextractorRight->getd_scaleFactor(), mvKeys_gpu,mvKeysRight_gpu, mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu , IL);
+                                                                   mpORBextractorRight->getRows() , mpORBextractorRight->getCols() , mpORBextractorRight->getd_scaleFactor(), mpORBextractorRight->getd_images(), mpORBextractorRight->getd_inputImage() , 
+                                                                   mvKeys_gpu,mvKeysRight_gpu, mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu , IL , IR);
     cudaDeviceSynchronize();
 
     
