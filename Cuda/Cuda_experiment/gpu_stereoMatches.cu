@@ -150,7 +150,7 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
 }
 
 
-__global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images  , uchar *d_inputImage , int rows_r , int cols_r , float *scaleFactorsRight, cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu){
+__global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images  , uchar *d_inputImage , int rows_r , int cols_r , float *scaleFactorsRight, cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu , uchar *IL){
 
     extern __shared__ float vDists[];  // TODO -> VA UTILIZZATA ANCHE PER SALVARE IL SUB-MATRIX
     size_t id = threadIdx.x;    // Each thread rappresent one element
@@ -173,10 +173,10 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
 
         // The focus now is to transform this ⤋⤋⤋ in a standard arrays
         //cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
-        int i_start = scaledvL-w_gpu;
-        int i_final = scaledvL+w_gpu+1;
-        int j_start = scaleduL-w_gpu;
-        int j_final = scaleduL+w_gpu+1;
+        int i_startIL = scaledvL-w_gpu;
+        int i_finalIL = scaledvL+w_gpu+1;
+        int j_startIL = scaleduL-w_gpu;
+        int j_finalIL = scaleduL+w_gpu+1;
 
         const float d_scaleFactor = scaleFactors[kpL.octave];  
         const float d_scaleFactorRight = scaleFactorsRight[kpL.octave]; 
@@ -185,6 +185,7 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
         const uint new_rows_r  = round(rows_r * 1/d_scaleFactorRight);
         const uint new_cols_r = round(cols_r * 1/d_scaleFactorRight);
 
+    
         //printf("{%d}GPU -> iL[%lu] octave = %d row = %d , col = %d , scale factor : %f new_rows = %u , new_cols =%u \n" , time_calls_gpu , index , kpL.octave ,  rows , cols , d_scaleFactor , new_rows , new_cols );
 
         // Print all pixel of the level
@@ -207,13 +208,23 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             }       
         }*/
         
-
-        /*for (int i=i_start ; i<i_final ; i++){
-            for(int j=j_start ; j<j_final ; j++){
-                printf("%u " , 'a');
+        if(iL == 3){
+            int level = kpL.octave;
+            int offset_level = (rows * cols) * level;
+            uchar *imgPyramid;
+            if(level == 0){
+                imgPyramid = d_inputImage;
+            }else{
+                imgPyramid = d_images;
             }
-            printf("\n");
-        }*/
+            //printf("LI iL(3) : \n");
+            for (int i=i_startIL ; i<i_finalIL; i++){
+                for(int j=j_startIL ; j<j_finalIL ; j++){
+                    int index = j + (i * new_cols) + offset_level;
+                    //printf("GPU {%d} element[%d][%d]%u \n" , time_calls_gpu , i - i_startIL , j - j_startIL ,imgPyramid[index] );
+                }
+            }
+        }
 
 
         int bestDist = INT_MAX;
@@ -231,6 +242,7 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
         if(iniu<0 || endu >= new_cols_r )   // per evitare di uscire dai range
             return;
 
+        
 
         // CONTINUE FROM HERE
         // NOW YOU HAVE TO CALCULATE NORM1 -> USE : cublas<t>asum() , cublas<t>copy() , cublas<t>axpy()
@@ -399,13 +411,16 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaMemcpyToSymbol(L_gpu, &L, 1 * sizeof(int));
     cudaMemcpyToSymbol(w_gpu, &w, 1 * sizeof(int));
     int vDistsSize = (2*L+1);  // TO DO -> FARE IN MODO DI CREARE UN ARRAY CONTENTE SIA VDIST CHE LA MATRICE SUB
+    uchar *IL;
+    cudaMalloc(&IL , sizeof(uchar) * sizeof(char) * (w*2) + 1 );
+
 
 
     printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
     findMiniumDistance<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
     cudaDeviceSynchronize();
     slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD , vDistsSize>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images(), mpORBextractorLeft->getd_inputImage() , 
-                                                                   mpORBextractorRight->getRows() , mpORBextractorRight->getCols() , mpORBextractorRight->getd_scaleFactor(), mvKeys_gpu,mvKeysRight_gpu, mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu);
+                                                                   mpORBextractorRight->getRows() , mpORBextractorRight->getCols() , mpORBextractorRight->getd_scaleFactor(), mvKeys_gpu,mvKeysRight_gpu, mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu , IL);
     cudaDeviceSynchronize();
 
     
