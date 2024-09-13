@@ -149,11 +149,19 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
 
 }
 
-__device__ float norm1(const uchar *IL_u , const uchar *IR_u , float* IL , float* IR ){
+__device__ void norm1(const uchar *IL_u , const uchar *IR_u , float* IL , float* IR , int lineSize , int colOffset , int colOffsetRight){
 
-    //TODO - Remember this a sequential function
+    //TODO - The main idea is to PUT IL_u and IR_u into IL,IR and then launch the function on it
 
-    return 1.0;
+    // TODO - Fix : only the first 11-elements are correct the other one are wrong, probably error on offset
+    int index,indexR ; 
+    for(int i=0 ; i< lineSize; i++){
+        index = i + ( (i/lineSize) * colOffset );
+        indexR = i + ((i/lineSize) * colOffsetRight);
+        printf("GPU {%d} i : %d \n" , time_calls_gpu ,  index  );
+        IL[i] = (float) IL_u[index];
+        IR[i] = (float) IR_u[indexR];
+    }
 
 }
 
@@ -245,12 +253,14 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             //float dist = cv::norm(IL,IR,cv::NORM_L1);   // Esegue la norma1 tra la finestra_sx e la finestra_dx
             // Sostituto con ⤋⤋⤋
 
-            /* FOR GPU - ATTEMPT2 
+            
             if(iL == 3 ){
                 int level = kpL.octave;
                 int offset_level = (rows * cols) * level;
                 int offset_levelR = (rows_r * cols_r) * level;
-                int size = (w_gpu*2)+1;
+                int line_size = ( (w_gpu*2) + 1 );
+                int col_offset = new_cols;
+                int col_offsetRight = new_cols_r;
                 int block_dim = 16;
                 uchar *imgPyramid , *imgPyramidRight;
                 if(level == 0){
@@ -262,9 +272,12 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
                 }
                 const unsigned char *IL_u =  (imgPyramid + (((i_startIL * new_cols)+j_startIL) + offset_level)  );
                 const unsigned char *IR_u =  (imgPyramidRight + (((i_startIR * new_cols_r)+j_startIR) + offset_levelR ) );
-                norm1<<<size/block_dim , block_dim >>>( IL_u , IR_u , IL , IR );
+                norm1( IL_u , IR_u , IL , IR , line_size , col_offset , col_offsetRight );
+                for(int i=0 ; i<line_size * line_size ; i++){
+                    printf("GPU {%d} inc(%d) element(%i) = %f LS = %d COLF COLFR %d %d \n" , time_calls_gpu , incR , i , IL[i] , line_size , col_offset , col_offsetRight);
+                }
             }
-            */
+        
             
             /* FOR GPU - ATTEMPT1
             if(iL == 3){
