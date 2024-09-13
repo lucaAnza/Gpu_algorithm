@@ -3,6 +3,7 @@ int time_calls = 0;   //(luke_add)
 void Frame::ComputeStereoMatches()
 {      
     time_calls++;
+    
 
     mvuRight = vector<float>(N,-1.0f);
     mvDepth = vector<float>(N,-1.0f);
@@ -173,9 +174,9 @@ void Frame::ComputeStereoMatches()
             {
                 cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
 
-
+                printf("ROW %f -> %f " , scaledvL-w,scaledvL+w+1 );
                 if(iL == 3){
-                    printf("{%d} comparison iL = 3 incR = %d: \n" , time_calls ,incR);
+                    printf("{%d} comparison(IL-IR) iL = 3  incR = %d: \n" , time_calls ,incR);
                     for (int i = 0; i < IL.rows; ++i) {
                         for (int j = 0; j < IL.cols; ++j) {
                             // Se l'immagine è a 1 canale (grayscale)

@@ -149,20 +149,18 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
 
 }
 
-__device__ void norm1(const uchar *IL_u , const uchar *IR_u , float* IL , float* IR , int lineSize , int colOffset , int colOffsetRight){
+__device__ void ucharVectorToFloat(const uchar *inputVector , float* outputVector , int i_init , int j_init , int i_max , int j_max , int cols ){
 
-    //TODO - The main idea is to PUT IL_u and IR_u into IL,IR and then launch the function on it
-
-    // TODO - Fix : only the first 11-elements are correct the other one are wrong, probably error on offset
-    int index,indexR ; 
-    for(int i=0 ; i< lineSize; i++){
-        index = i + ( (i/lineSize) * colOffset );
-        indexR = i + ((i/lineSize) * colOffsetRight);
-        printf("GPU {%d} i : %d \n" , time_calls_gpu ,  index  );
-        IL[i] = (float) IL_u[index];
-        IR[i] = (float) IR_u[indexR];
+    int index;
+    int count = 0;
+    for(int i = i_init  ; i < i_max ; i++ ){
+        for(int j = j_init ; j < j_max ; j++ ){
+            index = ( (i*cols) + j ) ;
+            outputVector[count] = (float) inputVector[index];
+            count ++ ;
+        }
     }
-
+    
 }
 
 
@@ -270,9 +268,7 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
                     imgPyramid = d_images;
                     imgPyramidRight = d_imagesR;
                 }
-                const unsigned char *IL_u =  (imgPyramid + (((i_startIL * new_cols)+j_startIL) + offset_level)  );
-                const unsigned char *IR_u =  (imgPyramidRight + (((i_startIR * new_cols_r)+j_startIR) + offset_levelR ) );
-                norm1( IL_u , IR_u , IL , IR , line_size , col_offset , col_offsetRight );
+                ucharVectorToFloat( imgPyramid+offset_level , IL , i_startIL , j_startIL , i_finalIL , j_finalIL , cols );
                 for(int i=0 ; i<line_size * line_size ; i++){
                     printf("GPU {%d} inc(%d) element(%i) = %f LS = %d COLF COLFR %d %d \n" , time_calls_gpu , incR , i , IL[i] , line_size , col_offset , col_offsetRight);
                 }
