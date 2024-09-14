@@ -149,27 +149,32 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
 
 }
 
-// Transform uchar elements in float elements of a matrix (cols rappresent the number of column in a row)
-__device__ void ucharVectorToFloat(const uchar *inputVector , float* outputVector , int i_init , int j_init , int i_max , int j_max , int cols ){
 
-    int index;
-    int count = 0;
-    for(int i = i_init  ; i < i_max ; i++ ){
-        for(int j = j_init ; j < j_max ; j++ ){
-            index = ( (i*cols) + j ) ;
-            outputVector[count] = (float) inputVector[index];
-            count ++ ;
-        }
-    }
-    
-}
-
-// Calculate Norm1 of 2 vector
-__device__ float norm1(float *V1 , float* V2 , int size ){
+// Calculate Norm1 of 2 vector with the same lenght
+__device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , int j1 , int i2 , int j2 , int cols1 , int cols2 , int incR , int iL){
 
     float sum = 0;
-    for(int i=0 ; i < size ; i++){
-        sum = sum + abs(V1[i] - V2[i]);
+    int countRow = 0;
+    int countCol = 0;
+    int j1_temp = j1;
+    int j2_temp = j2;
+    while(countRow < size){
+        while(countCol < size){
+            int index1 = ( (i1*cols1) + j1 );
+            int index2 = ( (i2*cols2) + j2 );
+            //if(iL == 3)
+            //printf("GPU {%d} iL = %d inc(%d) element[%d][%d] = %u - %u \n" , time_calls_gpu , iL , incR , countRow , countCol ,V1[index1] , V2[index2]);
+            sum = sum + abs(((float) V1[index1] - (float) V2[index2]));
+            countCol++;
+            j1++;
+            j2++;
+        }
+        i1++;
+        i2++;
+        j1 = j1_temp;
+        j2 = j2_temp;
+        countCol = 0;
+        countRow++;
     }
 
     return sum;
@@ -179,7 +184,7 @@ __device__ float norm1(float *V1 , float* V2 , int size ){
 
 __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images  , uchar *d_inputImage , int rows_r , int cols_r , float *scaleFactorsRight, uchar *d_imagesR , uchar *d_inputImageR ,cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu , float *IL , float *IR){
 
-    extern __shared__ float vDists[];  
+    extern __shared__ int vDists[];  
     size_t id = threadIdx.x;   
     size_t b_id = blockIdx.x;   
     size_t iL = (b_id * blockDim.x) + id;  // Index is iL of CPU function (iL [0 -> 2026])
@@ -252,8 +257,7 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             return;
 
         
-        // TODO -> POSSIBILE CREAZIONE DI FUNZIONE CUDA CHE ESEGUE LA NORMAL1 IN QUESTO CICLO
-        for(int incR=-L_gpu; incR<=+L_gpu; incR++){
+        for(int incR=-L_gpu , count = 0 ; incR<=+L_gpu ; incR++ , count = count + ((w_gpu*2)+1) * ((w_gpu*2)+1) ){
             
             //cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
             int i_startIR = scaledvL-w_gpu;
@@ -264,32 +268,31 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             //float dist = cv::norm(IL,IR,cv::NORM_L1);   // Esegue la norma1 tra la finestra_sx e la finestra_dx
             // Sostituto con ⤋⤋⤋
 
-            
-            if(iL == 3 ){
-                int level = kpL.octave;
-                int offset_level = (rows * cols) * level;
-                int offset_levelR = (rows_r * cols_r) * level;
-                int line_size = ( (w_gpu*2) + 1 );
-                int col_offset = new_cols;
-                int col_offsetRight = new_cols_r;
-                int block_dim = 16;
-                uchar *imgPyramid , *imgPyramidRight;
-                if(level == 0){
-                    imgPyramid = d_inputImage;
-                    imgPyramidRight = d_inputImageR;
-                }else{
-                    imgPyramid = d_images;
-                    imgPyramidRight = d_imagesR;
-                }
-                ucharVectorToFloat( imgPyramid+offset_level , IL , i_startIL , j_startIL , i_finalIL , j_finalIL , cols );
-                ucharVectorToFloat( imgPyramidRight+offset_levelR , IR , i_startIR , j_startIR , i_finalIR , j_finalIR , cols_r );
-                for(int i=0 ; i<line_size * line_size ; i++){
-                    printf("GPU {%d} inc(%d) element(%i) = %f LS = %d COLF COLFR %d %d \n" , time_calls_gpu , incR , i , IL[i] , line_size , col_offset , col_offsetRight);
-                }
-                float result = norm1(IL , IR , line_size * line_size);
-                printf("GPU {%d} RESULT-NORM inc(%d) = %f  \n" , time_calls_gpu , incR , result );  
-
+            int level = kpL.octave;
+            int offset_level = (rows * cols) * level;
+            int offset_levelR = (rows_r * cols_r) * level;
+            int line_size = ( (w_gpu*2) + 1 );
+            int col_offset = new_cols;
+            int col_offsetRight = new_cols_r;
+            int block_dim = 16;
+            uchar *imgPyramid , *imgPyramidRight;
+            if(level == 0){
+                imgPyramid = d_inputImage;
+                imgPyramidRight = d_inputImageR;
+            }else{
+                imgPyramid = d_images;
+                imgPyramidRight = d_imagesR;
             }
+
+            
+            float dist = norm1( imgPyramid+offset_level , imgPyramidRight+offset_levelR , line_size , i_startIL , j_startIL , i_startIR , j_startIR , cols , cols_r , incR , iL);
+
+            /*
+            if(iL == 3)
+                printf("GPU {%d} RESULT-NORM inc(%d) dist = %f  \n" , time_calls_gpu , incR , dist );
+            */
+
+            
         
             
             /* FOR GPU - ATTEMPT1
@@ -321,17 +324,37 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             }
             */
 
-            /*
-            if(dist<bestDist)
+            
+            /*if(dist<bestDist)
             {
                 bestDist =  dist;
                 bestincR = incR;
             }
+            //vDists[L_gpu+incR] = dist;
+            
+            BECOME ⤋⤋⤋ :
 
-            vDists[L+incR] = dist;
+
+            CONTINUE FROM HERE!!!
+            //atomicMin( &vDists[L_gpu+incR] , dist);     
             */
+
+
+            
+            
+            
+            
+            
             
         }
+
+        /*
+        if(iL == 3){    
+            for(int i=0 ; i<(2*L_gpu+1) ; i++){
+                printf("GPU {%d} VDIST(%d)  =  %d  \n" , time_calls_gpu , i ,vDists[i] );  
+            }
+        }
+        */
 
         
         /*
@@ -451,7 +474,7 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     std::vector<size_t> vRowIndices_temp;
     std::vector<size_t> incremental_size_refer;
     incremental_size_refer.resize(size_refer.size());
-    printf("vrowindices.size() %d\n" , vRowIndices.size() );
+    //printf("vrowindices.size() %d\n" , vRowIndices.size() );
     for(int i=0 ; i<vRowIndices.size() ; i++){
 
         if(i>0)
@@ -469,10 +492,11 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaMalloc(&vRowIndices_gpu , sizeof(size_t) * total_element );
     cudaMemcpy(vRowIndices_gpu, vRowIndices_temp.data(), sizeof(size_t) * total_element, cudaMemcpyHostToDevice); 
 
+    /*
     //DEBUG - ToDelete
     for(int i=0 ; i<vRowIndices.size() ; i++){
         printf("%d: %lu \t %lu\n" , i , size_refer[i] , incremental_size_refer[i]);
-    }
+    }*/
     
     //Test - Functionality of minium distance
     cudaMalloc(&miniumDist_gpu , sizeof(int) * N);
@@ -483,10 +507,10 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     const int w = 5; //sliding windows_search
     cudaMemcpyToSymbol(L_gpu, &L, 1 * sizeof(int));
     cudaMemcpyToSymbol(w_gpu, &w, 1 * sizeof(int));
-    int vDistsSize = (2*L+1);  // TO DO -> FARE IN MODO DI CREARE UN ARRAY CONTENTE SIA VDIST CHE LA MATRICE SUB
+    int vDistsSize = (2*L+1);  
     float *IL,*IR;
-    cudaMalloc(&IL , sizeof(float) * (w*2) + 1 );
-    cudaMalloc(&IR , sizeof(float) * (w*2) + 1 );
+    cudaMalloc(&IL , sizeof(float) * ((w*2)+1) * ((w*2)+1) * vDistsSize );
+    cudaMalloc(&IR , sizeof(float) * ((w*2)+1) * ((w*2)+1) * vDistsSize );
 
 
 

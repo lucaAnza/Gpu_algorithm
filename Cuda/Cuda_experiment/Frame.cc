@@ -208,6 +208,12 @@ void Frame::ComputeStereoMatches()
                 vDists[L+incR] = dist;
             }
 
+            if(iL == 3){
+                for(int i=0 ; i<(2*L+1) ; i++){
+                    printf("CPU {%d} VDIST(%d)  =  %f  \n" , time_calls , i ,vDists[i] );  
+                }
+            }
+
             if(bestincR==-L || bestincR==L)
                 continue;
 
