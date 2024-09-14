@@ -149,6 +149,7 @@ __global__ void findMiniumDistance(size_t* vRowIndices_gpu , cv::KeyPoint *mvKey
 
 }
 
+// Transform uchar elements in float elements of a matrix (cols rappresent the number of column in a row)
 __device__ void ucharVectorToFloat(const uchar *inputVector , float* outputVector , int i_init , int j_init , int i_max , int j_max , int cols ){
 
     int index;
@@ -160,6 +161,18 @@ __device__ void ucharVectorToFloat(const uchar *inputVector , float* outputVecto
             count ++ ;
         }
     }
+    
+}
+
+// Calculate Norm1 of 2 vector
+__device__ float norm1(float *V1 , float* V2 , int size ){
+
+    float sum = 0;
+    for(int i=0 ; i < size ; i++){
+        sum = sum + abs(V1[i] - V2[i]);
+    }
+
+    return sum;
     
 }
 
@@ -269,9 +282,13 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
                     imgPyramidRight = d_imagesR;
                 }
                 ucharVectorToFloat( imgPyramid+offset_level , IL , i_startIL , j_startIL , i_finalIL , j_finalIL , cols );
+                ucharVectorToFloat( imgPyramidRight+offset_levelR , IR , i_startIR , j_startIR , i_finalIR , j_finalIR , cols_r );
                 for(int i=0 ; i<line_size * line_size ; i++){
                     printf("GPU {%d} inc(%d) element(%i) = %f LS = %d COLF COLFR %d %d \n" , time_calls_gpu , incR , i , IL[i] , line_size , col_offset , col_offsetRight);
                 }
+                float result = norm1(IL , IR , line_size * line_size);
+                printf("GPU {%d} RESULT-NORM inc(%d) = %f  \n" , time_calls_gpu , incR , result );  
+
             }
         
             

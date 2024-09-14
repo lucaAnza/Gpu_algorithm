@@ -174,7 +174,6 @@ void Frame::ComputeStereoMatches()
             {
                 cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
 
-                printf("ROW %f -> %f " , scaledvL-w,scaledvL+w+1 );
                 if(iL == 3){
                     printf("{%d} comparison(IL-IR) iL = 3  incR = %d: \n" , time_calls ,incR);
                     for (int i = 0; i < IL.rows; ++i) {
@@ -198,7 +197,7 @@ void Frame::ComputeStereoMatches()
                 float dist = cv::norm(IL,IR,cv::NORM_L1);   // Esegue la norma1 tra la finestra_sx e la finestra_dx
                 
                 if(iL == 3)
-                    printf("CPU {%d} incr(%d) norma1 = %f\n" , time_calls , incR , dist);
+                    printf("CPU {%d} incr(%d) norma1 = %f\n\n" , time_calls , incR , dist);
 
                 if(dist<bestDist)
                 {
