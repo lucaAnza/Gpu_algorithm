@@ -33,6 +33,8 @@ __constant__  int time_calls_gpu;   // count of number of call by ComputeStereoM
 __constant__  int thOrbDist_gpu;   // count of number of call by ComputeStereoMatches 
 __constant__  int L_gpu; 
 __constant__  int w_gpu;
+__constant__  int Nd;
+
 
 
 // Funzione che calcola la distanza tra 2 vettori
@@ -182,12 +184,17 @@ __device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , i
 }
 
 
-__global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images  , uchar *d_inputImage , int rows_r , int cols_r , float *scaleFactorsRight, uchar *d_imagesR , uchar *d_inputImageR ,cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu , float *IL , float *IR){
+__global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images  , uchar *d_inputImage , int rows_r , int cols_r , 
+                               float *scaleFactorsRight, uchar *d_imagesR , uchar *d_inputImageR ,cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu , float *IL , float *IR , int *tempArray_gpu){
 
     extern __shared__ int vDists[];  
     size_t id = threadIdx.x;   
     size_t b_id = blockIdx.x;   
     size_t iL = (b_id * blockDim.x) + id;  // Index is iL of CPU function (iL [0 -> 2026])
+    
+    int bestDist = INT_MAX;
+    int bestincR = 0;    // è il miglior spostamento della windows
+    int distN[11]; // TODO  -> Is static could be a problem
 
     if(miniumDist_gpu[iL] < thOrbDist_gpu ){  //if(bestDist<thOrbDist)
 
@@ -241,8 +248,7 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
         }*/
         
 
-        int bestDist = INT_MAX;
-        int bestincR = 0;    // è il miglior spostamento della windows
+        
 
         // const int L = 5;   // Already on GPU constant_memory
         // vector<float> vDists;  // Save on shared_memory
@@ -257,7 +263,7 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             return;
 
         
-        for(int incR=-L_gpu , count = 0 ; incR<=+L_gpu ; incR++ , count = count + ((w_gpu*2)+1) * ((w_gpu*2)+1) ){
+        for(int incR=-L_gpu , count = 0 ; incR<=+L_gpu ; incR++ , count++ ){
             
             //cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
             int i_startIR = scaledvL-w_gpu;
@@ -285,15 +291,13 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             }
 
             
-            float dist = norm1( imgPyramid+offset_level , imgPyramidRight+offset_levelR , line_size , i_startIL , j_startIL , i_startIR , j_startIR , cols , cols_r , incR , iL);
-
-            /*
-            if(iL == 3)
-                printf("GPU {%d} RESULT-NORM inc(%d) dist = %f  \n" , time_calls_gpu , incR , dist );
-            */
-
+            int dist = (int) norm1( imgPyramid+offset_level , imgPyramidRight+offset_levelR , line_size , i_startIL , j_startIL , i_startIR , j_startIR , cols , cols_r , incR , iL);
+            distN[count] = dist;
             
-        
+            /*if(iL == 3){
+                printf("GPU {%d} RESULT-NORM inc(%d) dist = %d  \n" , time_calls_gpu , incR , dist );
+            }*/
+
             
             /* FOR GPU - ATTEMPT1
             if(iL == 3){
@@ -325,46 +329,53 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             */
 
             
-            /*if(dist<bestDist)
+            if(dist<bestDist)
             {
                 bestDist =  dist;
                 bestincR = incR;
             }
+            
             //vDists[L_gpu+incR] = dist;
-            
-            BECOME ⤋⤋⤋ :
 
-
-            CONTINUE FROM HERE!!!
-            //atomicMin( &vDists[L_gpu+incR] , dist);     
-            */
-
-
-            
-            
-            
-            
-            
-            
         }
+
+    }
+
+
+    __syncthreads();
+
+    
+    
+    if(miniumDist_gpu[iL] < thOrbDist_gpu ){
 
         /*
         if(iL == 3){    
-            for(int i=0 ; i<(2*L_gpu+1) ; i++){
-                printf("GPU {%d} VDIST(%d)  =  %d  \n" , time_calls_gpu , i ,vDists[i] );  
-            }
-        }
-        */
+            printf("GPU {%d} iL == 3 BESTDIST = (%d)  \n" , time_calls_gpu , bestDist);  
+            /*for(int i=0 ; i<(2*L_gpu+1) ; i++){
+                printf("GPU {%d} iL == 3 VDIST[%d] = (%d)  \n" , time_calls_gpu , i ,distN[i] );  
+            }*/
+        //}
+        
 
         
-        /*
+        /*  // TODO -> DOn't forget this test!!!
         if(bestincR==-L || bestincR==L)
             continue;
-
+        
         // Sub-pixel match (Parabola fitting)
         const float dist1 = vDists[L+bestincR-1];
         const float dist2 = vDists[L+bestincR];
         const float dist3 = vDists[L+bestincR+1];
+        */
+
+        const float dist1 = distN[L_gpu+bestincR-1];
+        const float dist2 = distN[L_gpu+bestincR];
+        const float dist3 = distN[L_gpu+bestincR+1];   
+
+        tempArray_gpu[iL] = dist2;
+
+        //CONTINUE FROM HERE
+        /*
 
         const float deltaR = (dist1-dist3)/(2.0f*(dist1+dist3-2.0f*dist2));
 
@@ -419,7 +430,7 @@ void test_BestDistAccuracy( int *distanzeMinimeFromGpu , size_t *indici_distanze
 
 
 void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::ORBextractor *mpORBextractorRight , int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist ,cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
-                      std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer , std::vector<int> best_dists , std::vector<size_t> best_dists_index){
+                      std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer , std::vector<int> best_dists , std::vector<size_t> best_dists_index ){
 
     cv::KeyPoint *mvKeys_gpu;
     cv::KeyPoint *mvKeysRight_gpu;
@@ -449,6 +460,7 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaMemcpyToSymbol(mDescriptors_gpu_lines, &num_elements_left, 1 * sizeof(int));
     cudaMemcpyToSymbol(time_calls_gpu, &time_calls, 1 * sizeof(int));
     cudaMemcpyToSymbol(thOrbDist_gpu, &thOrbDist, 1 * sizeof(int));
+    cudaMemcpyToSymbol(Nd, &N, 1 * sizeof(int));
     
 
     //Allocazione memoria per array dinamici
@@ -511,6 +523,11 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     float *IL,*IR;
     cudaMalloc(&IL , sizeof(float) * ((w*2)+1) * ((w*2)+1) * vDistsSize );
     cudaMalloc(&IR , sizeof(float) * ((w*2)+1) * ((w*2)+1) * vDistsSize );
+    // DINAMIC ARRAY FOR DEBUGGING (AFTER KERNEL CALL THERE IS AN OTHER)
+    int *tempArray_gpu;
+    int tempArray_cpu[N];
+    cudaMalloc(&tempArray_gpu , sizeof(int) * N );
+    
 
 
 
@@ -519,8 +536,15 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaDeviceSynchronize();
     slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD , vDistsSize>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images(), mpORBextractorLeft->getd_inputImage() , 
                                                                    mpORBextractorRight->getRows() , mpORBextractorRight->getCols() , mpORBextractorRight->getd_scaleFactor(), mpORBextractorRight->getd_images(), mpORBextractorRight->getd_inputImage() , 
-                                                                   mvKeys_gpu,mvKeysRight_gpu, mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu , IL , IR);
+                                                                   mvKeys_gpu,mvKeysRight_gpu, mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu , IL , IR , tempArray_gpu);
     cudaDeviceSynchronize();
+    
+    // DINAMIC ARRAY FOR DEBUGGING 
+    cudaMemcpy(tempArray_cpu, tempArray_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
+    printf("{%d} GPU Debug of BEST : " , time_calls_gpu);
+    for(int i=0 ; i<N ; i++){
+        printf("{%d} GPU BEST[%d] = %d \n" , time_calls_gpu , i , tempArray_cpu[i]);
+    }
 
     
 

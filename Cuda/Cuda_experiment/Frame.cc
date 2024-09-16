@@ -207,6 +207,8 @@ void Frame::ComputeStereoMatches()
 
                 vDists[L+incR] = dist;
             }
+            
+            
 
             if(iL == 3){
                 for(int i=0 ; i<(2*L+1) ; i++){
@@ -221,6 +223,10 @@ void Frame::ComputeStereoMatches()
             const float dist1 = vDists[L+bestincR-1];
             const float dist2 = vDists[L+bestincR];
             const float dist3 = vDists[L+bestincR+1];
+
+            if(iL > 0){
+                printf("CPU {%d} iL = %d f1,f2,f3 , best = %f,%f,%f ,  %d\n" , time_calls  , iL , dist1 , dist2 , dist3 , bestDist);
+            }
 
             const float deltaR = (dist1-dist3)/(2.0f*(dist1+dist3-2.0f*dist2));
 
