@@ -34,7 +34,8 @@ __constant__  int thOrbDist_gpu;   // count of number of call by ComputeStereoMa
 __constant__  int L_gpu; 
 __constant__  int w_gpu;
 __constant__  int Nd;
-
+__constant__  float mb_gpu;
+__constant__  float mbf_gpu;
 
 
 // Funzione che calcola la distanza tra 2 vettori
@@ -185,7 +186,8 @@ __device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , i
 
 
 __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images  , uchar *d_inputImage , int rows_r , int cols_r , 
-                               float *scaleFactorsRight, uchar *d_imagesR , uchar *d_inputImageR ,cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu , float *IL , float *IR , int *tempArray_gpu){
+                               float *scaleFactorsRight, uchar *d_imagesR , uchar *d_inputImageR ,cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu , 
+                               float *IL , float *IR , float *mvDepth_gpu , float *mvRight_gpu , int *vDistIdx_gpu){
 
     extern __shared__ int vDists[];  
     size_t id = threadIdx.x;   
@@ -335,8 +337,6 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
                 bestincR = incR;
             }
             
-            //vDists[L_gpu+incR] = dist;
-
         }
 
     }
@@ -347,6 +347,15 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
     
     
     if(miniumDist_gpu[iL] < thOrbDist_gpu ){
+        
+        // TODO -> this variable are already on the previous if, you can optimaze
+        // coordinates in image pyramid at keypoint scale
+        const cv::KeyPoint &kpL = mvKeys_gpu[iL];
+        const float &uL = kpL.pt.x;
+        size_t bestIdxR = miniumDistIndex_gpu[iL];
+        const float uR0 = mvKeysRight_gpu[bestIdxR].pt.x;        
+        const float scaleFactor = mvInvScaleFactors_gpu[kpL.octave];      
+        const float scaleduR0 = round(uR0*scaleFactor);     
 
         /*
         if(iL == 3){    
@@ -368,11 +377,12 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
         const float dist3 = vDists[L+bestincR+1];
         */
 
-        const float dist1 = distN[L_gpu+bestincR-1];
-        const float dist2 = distN[L_gpu+bestincR];
-        const float dist3 = distN[L_gpu+bestincR+1];   
+        
 
-        tempArray_gpu[iL] = dist2;
+        /*
+        if(iL == 3 | iL == 4 | iL == 5){
+            printf("GPU {%d} iL == %lu Disparity = (%f)  \n" , time_calls_gpu  , iL , disparity );  
+        }*/
 
         //CONTINUE FROM HERE
         /*
@@ -399,6 +409,35 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             vDistIdx.push_back(pair<int,int>(bestDist,iL));
         }
         */
+        
+        if(bestincR==-L_gpu || bestincR==L_gpu)
+            return;
+
+        const float dist1 = distN[L_gpu+bestincR-1];
+        const float dist2 = distN[L_gpu+bestincR];
+        const float dist3 = distN[L_gpu+bestincR+1];   
+
+        const float deltaR = (dist1-dist3)/(2.0f*(dist1+dist3-2.0f*dist2));
+
+        if(deltaR<-1 || deltaR>1)
+            return;
+
+        // Re-scaled coordinate
+        float bestuR = mvScaleFactors_gpu[kpL.octave]*((float)scaleduR0+(float)bestincR+deltaR);
+
+        float disparity = (uL-bestuR);
+ 
+        if(disparity>=minD_gpu && disparity<maxD_gpu){
+            if(disparity<=0){
+                disparity=0.01;
+                bestuR = uL-0.01;
+            }
+            mvDepth_gpu[iL]=mbf_gpu/disparity;
+            mvRight_gpu[iL] = bestuR;
+            //vDistIdx.push_back(pair<int,int>(bestDist,iL));
+            vDistIdx_gpu[iL] = bestDist;
+        }
+
     }
 
 }
@@ -430,7 +469,7 @@ void test_BestDistAccuracy( int *distanzeMinimeFromGpu , size_t *indici_distanze
 
 
 void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::ORBextractor *mpORBextractorRight , int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist ,cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
-                      std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer , std::vector<int> best_dists , std::vector<size_t> best_dists_index ){
+                      std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer , std::vector<int> best_dists , std::vector<size_t> best_dists_index , float mb , float mbf){
 
     cv::KeyPoint *mvKeys_gpu;
     cv::KeyPoint *mvKeysRight_gpu;
@@ -448,6 +487,9 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     unsigned N = mvKeys.size();
     int *miniumDist_gpu;
     size_t *miniumDistIndex_gpu;
+    float* mvDepth_gpu;
+    float* mvRight_gpu;
+    int *vDistIdx_gpu;
     
     // Copia parametri input in memoria costante
     cudaMemcpyToSymbol(minZ_gpu, &minZ, 1 * sizeof(float));
@@ -461,6 +503,9 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaMemcpyToSymbol(time_calls_gpu, &time_calls, 1 * sizeof(int));
     cudaMemcpyToSymbol(thOrbDist_gpu, &thOrbDist, 1 * sizeof(int));
     cudaMemcpyToSymbol(Nd, &N, 1 * sizeof(int));
+    cudaMemcpyToSymbol(mb_gpu, &mb, 1 * sizeof(float));
+    cudaMemcpyToSymbol(mbf_gpu, &mbf, 1 * sizeof(float));
+
     
 
     //Allocazione memoria per array dinamici
@@ -478,6 +523,9 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaMemcpy(mvScaleFactors_gpu, mvScaleFactors.data(), sizeof(float) * mvScaleFactors.size(), cudaMemcpyHostToDevice); //TODO : cambiare mvScaleFactors con mpORBextractorLeft->GetScaleFactors()
     cudaMalloc(&size_refer_gpu , sizeof(size_t) * size_refer.size() );
     cudaMemcpy(size_refer_gpu, size_refer.data(), sizeof(size_t) * size_refer.size(), cudaMemcpyHostToDevice); 
+    cudaMalloc(&mvDepth_gpu , sizeof(float) * N );
+    cudaMalloc(&mvRight_gpu , sizeof(float) * N );
+    cudaMalloc(&vDistIdx_gpu , sizeof(int) * N );
 
 
     //TODO -> Evitare di fare questo ciclo e di allocare vRowIndices_temp (spreco di memoria e tempo) OR eseguirlo in GPU
@@ -523,10 +571,8 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     float *IL,*IR;
     cudaMalloc(&IL , sizeof(float) * ((w*2)+1) * ((w*2)+1) * vDistsSize );
     cudaMalloc(&IR , sizeof(float) * ((w*2)+1) * ((w*2)+1) * vDistsSize );
-    // DINAMIC ARRAY FOR DEBUGGING (AFTER KERNEL CALL THERE IS AN OTHER)
-    int *tempArray_gpu;
-    int tempArray_cpu[N];
-    cudaMalloc(&tempArray_gpu , sizeof(int) * N );
+    
+    
     
 
 
@@ -536,12 +582,13 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaDeviceSynchronize();
     slidingWindow<<<((int)N/NUM_THREAD),NUM_THREAD , vDistsSize>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images(), mpORBextractorLeft->getd_inputImage() , 
                                                                    mpORBextractorRight->getRows() , mpORBextractorRight->getCols() , mpORBextractorRight->getd_scaleFactor(), mpORBextractorRight->getd_images(), mpORBextractorRight->getd_inputImage() , 
-                                                                   mvKeys_gpu,mvKeysRight_gpu, mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu , IL , IR , tempArray_gpu);
+                                                                   mvKeys_gpu,mvKeysRight_gpu, mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu , IL , IR  , mvDepth_gpu , mvRight_gpu , vDistIdx_gpu);
     cudaDeviceSynchronize();
     
     // DINAMIC ARRAY FOR DEBUGGING 
-    cudaMemcpy(tempArray_cpu, tempArray_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
-    printf("{%d} GPU Debug of BEST : " , time_calls_gpu);
+    int tempArray_cpu[N];
+    cudaMemcpy(tempArray_cpu, vDistIdx_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
+    printf("{%d} GPU Debug of vDistIdx_gpu : " , time_calls_gpu);
     for(int i=0 ; i<N ; i++){
         printf("{%d} GPU BEST[%d] = %d \n" , time_calls_gpu , i , tempArray_cpu[i]);
     }

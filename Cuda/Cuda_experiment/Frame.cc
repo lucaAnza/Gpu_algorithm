@@ -224,9 +224,9 @@ void Frame::ComputeStereoMatches()
             const float dist2 = vDists[L+bestincR];
             const float dist3 = vDists[L+bestincR+1];
 
-            if(iL > 0){
+            /*if(iL == 3){
                 printf("CPU {%d} iL = %d f1,f2,f3 , best = %f,%f,%f ,  %d\n" , time_calls  , iL , dist1 , dist2 , dist3 , bestDist);
-            }
+            }*/
 
             const float deltaR = (dist1-dist3)/(2.0f*(dist1+dist3-2.0f*dist2));
 
@@ -237,6 +237,14 @@ void Frame::ComputeStereoMatches()
             float bestuR = mvScaleFactors[kpL.octave]*((float)scaleduR0+(float)bestincR+deltaR);
 
             float disparity = (uL-bestuR);
+
+            if(iL == 3 || iL == 4 || iL == 5){
+                printf("CPU {%d} iL == %d Disparity = (%f)  \n" , time_calls  , iL , disparity );  
+            }
+
+            if(iL == 3 ){    
+                printf("CPU {%d} iL == 3 mb , mbf  = %f , %f  \n" , time_calls , mb , mbf );
+            }  
 
             if(disparity>=minD && disparity<maxD)
             {
@@ -253,7 +261,7 @@ void Frame::ComputeStereoMatches()
     }
 
     // Chiama la funzione parallela di stereo matching     (luke_add)
-    gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL ,  best_dist_line_index_iL);
+    gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL ,  best_dist_line_index_iL , mb , mbf);
 
     sort(vDistIdx.begin(),vDistIdx.end());
     const float median = vDistIdx[vDistIdx.size()/2].first;
