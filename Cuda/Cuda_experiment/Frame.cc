@@ -2,6 +2,24 @@ int time_calls = 0;   //(luke_add)
 
 void Frame::ComputeStereoMatches()
 {      
+    
+    // luke_add : 
+    vector<float> dist1_debug;
+    vector<float> dist2_debug;
+    vector<float> dist3_debug;
+    vector<float> deltaR_debug;
+    vector<float> bestuR_debug;
+    vector<float> disparity_debug;
+    vector<int> bestDist_debug;
+    dist1_debug.resize(N);
+    dist2_debug.resize(N);
+    dist3_debug.resize(N);
+    deltaR_debug.resize(N);
+    bestuR_debug.resize(N);
+    disparity_debug.resize(N);
+    bestDist_debug.resize(N);
+
+
     time_calls++;
     
 
@@ -207,6 +225,10 @@ void Frame::ComputeStereoMatches()
 
                 vDists[L+incR] = dist;
             }
+
+
+            //luke_add
+            bestDist_debug[iL] = bestDist;
             
             
 
@@ -224,11 +246,11 @@ void Frame::ComputeStereoMatches()
             const float dist2 = vDists[L+bestincR];
             const float dist3 = vDists[L+bestincR+1];
 
-            /*if(iL == 3){
-                printf("CPU {%d} iL = %d f1,f2,f3 , best = %f,%f,%f ,  %d\n" , time_calls  , iL , dist1 , dist2 , dist3 , bestDist);
-            }*/
-
             const float deltaR = (dist1-dist3)/(2.0f*(dist1+dist3-2.0f*dist2));
+
+            if(iL > 0){
+                printf("CPU {%d} iL = %d d1 = %f , d2 = %f  , d3 = %f , deltaR = %f , bestDist =  %d\n" , time_calls  , iL , dist1 , dist2 , dist3 , deltaR, bestDist);
+            }
 
             if(deltaR<-1 || deltaR>1)
                 continue;
@@ -238,13 +260,7 @@ void Frame::ComputeStereoMatches()
 
             float disparity = (uL-bestuR);
 
-            if(iL == 3 || iL == 4 || iL == 5){
-                printf("CPU {%d} iL == %d Disparity = (%f)  \n" , time_calls  , iL , disparity );  
-            }
-
-            if(iL == 3 ){    
-                printf("CPU {%d} iL == 3 mb , mbf  = %f , %f  \n" , time_calls , mb , mbf );
-            }  
+            printf("CPU {%d} iL = %d bestUr = %f , disparity = %f\n" , time_calls  , iL , bestuR , disparity);
 
             if(disparity>=minD && disparity<maxD)
             {
@@ -261,7 +277,7 @@ void Frame::ComputeStereoMatches()
     }
 
     // Chiama la funzione parallela di stereo matching     (luke_add)
-    gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL ,  best_dist_line_index_iL , mb , mbf);
+    gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL ,  best_dist_line_index_iL , bestDist_debug);
 
     sort(vDistIdx.begin(),vDistIdx.end());
     const float median = vDistIdx[vDistIdx.size()/2].first;
