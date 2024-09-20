@@ -136,6 +136,13 @@ void Frame::ComputeStereoMatches()
         best_dist_line_iL.push_back(bestDist);
         best_dist_line_index_iL.push_back(bestIdxR);
         bestDist_debug[iL] = -1;
+        dist1_debug[iL] = -1;
+        dist2_debug[iL] = -1;
+        dist3_debug[iL] = -1;
+        deltaR_debug[iL] = -1;
+        bestuR_debug[iL] = -1;
+        disparity_debug[iL] = -1;
+        bestDist_debug[iL] = -1;
 
         // Subpixel match by correlation
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
@@ -253,6 +260,12 @@ void Frame::ComputeStereoMatches()
 
             const float deltaR = (dist1-dist3)/(2.0f*(dist1+dist3-2.0f*dist2));
 
+            //luke_add
+            dist1_debug[iL] = dist1;
+            dist2_debug[iL] = dist2;
+            dist3_debug[iL] = dist3;
+            deltaR_debug[iL] = deltaR;
+
             /*if(iL > 0){
                 printf("CPU {%d} iL = %d d1 = %f , d2 = %f  , d3 = %f , deltaR = %f , bestDist =  %d\n" , time_calls  , iL , dist1 , dist2 , dist3 , deltaR, bestDist);
             }*/
@@ -282,7 +295,8 @@ void Frame::ComputeStereoMatches()
     }
 
     // Chiama la funzione parallela di stereo matching     (luke_add)
-    gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL ,  best_dist_line_index_iL , bestDist_debug);
+    gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL ,  best_dist_line_index_iL , 
+                    bestDist_debug , dist1_debug , dist2_debug , dist3_debug , deltaR_debug , bestuR_debug , disparity_debug, mvDepth , mvuRight);
 
     sort(vDistIdx.begin(),vDistIdx.end());
     const float median = vDistIdx[vDistIdx.size()/2].first;

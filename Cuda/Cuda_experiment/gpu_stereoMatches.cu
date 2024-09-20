@@ -357,7 +357,7 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
     tempArray_gpu[iL] = bestDist;
 
     
-    /*
+    
     if(iL < Nd && miniumDist_gpu[iL] < thOrbDist_gpu ){
 
         // TODO -> this variable are already on the previous if.  you can optimaze
@@ -411,16 +411,19 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
         }
         */
 
-        /* TODO -> FAI CHECK!!!!
-       if(bestincR==-L_gpu || bestincR==L_gpu)
+        
+        if(bestincR==-L_gpu || bestincR==L_gpu)
             return;
-        */
-        /*
+        
+        
         const float dist1 = distN[L_gpu+bestincR-1];
         const float dist2 = distN[L_gpu+bestincR];
-        const float dist3 = distN[L_gpu+bestincR+1];   
+        const float dist3 = distN[L_gpu+bestincR+1];  
 
+    
         const float deltaR = (dist1-dist3)/(2.0f*(dist1+dist3-2.0f*dist2));
+
+        tempArray_gpu_float[iL] = deltaR;
 
         /*  TODO -> ADD CHECK on GPU!!!!
         if(deltaR<-1 || deltaR>1)
@@ -432,8 +435,9 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
         float bestuR = mvScaleFactors_gpu[kpL.octave]*((float)scaleduR0+(float)bestincR+deltaR);
 
         float disparity = (uL-bestuR);
+        */
        
-    }*/
+    }
     
 
 }
@@ -509,7 +513,7 @@ void test_difference_float( float *array1 , std::vector<float> array2 , int n , 
 
     int cont_valori=0;
     for(int i=0 ; i<n ; i++){
-        if(array1[i] == array2[i])
+        if(array1[i] == array2[i] || (array2[i] == -1 && array1[i] == defaulArrayValue) )
             cont_valori++;
         else if(debug){
             printf("\t\t❌⇩ ⇩ ⇩  [%d] %f - %f \n" , i , array1[i] , array2[i]);
@@ -530,7 +534,7 @@ void test_difference_float( float *array1 , std::vector<float> array2 , int n , 
 
 void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::ORBextractor *mpORBextractorRight , int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist ,cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
                       std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer , std::vector<int> best_dists , std::vector<size_t> best_dists_index ,
-                      std::vector<int> bestDist){
+                      std::vector<int> bestDist_debug , std::vector<float> dist1_debug , std::vector<float> dist2_debug , std::vector<float> dist3_debug , std::vector<float> deltaR_debug , std::vector<float> bestuR_debug , std::vector<float> disparity_debug, std::vector<float> mvDepth , std::vector<float> mvuRight) {
 
     cv::KeyPoint *mvKeys_gpu;
     cv::KeyPoint *mvKeysRight_gpu;
@@ -654,16 +658,7 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     // DINAMIC ARRAY FOR DEBUGGING 
     cudaMemcpy(tempArray_cpu, tempArray_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
     cudaMemcpy(tempArray_cpu_float, tempArray_gpu_float, sizeof(float) * N, cudaMemcpyDeviceToHost);
-    
-
-    /*
-    printf("{%d} GPU Debug of BEST : " , time_calls_gpu);
-    for(int i=0 ; i<N ; i++){
-        printf("{%d} GPU Temp - int[%d] = %d \n" , time_calls_gpu , i , tempArray_cpu[i]);
-        printf("{%d} GPU Temp - float[%d] = %f \n" , time_calls_gpu , i , tempArray_cpu_float[i]);
-    }
-    */
-    
+        
 
     //Test - Test the accuracy of minium distance calculated by Gpu
     //printf("partition_factor :%d , thorbdist : %d \n" , part_const , thOrbDist);
@@ -675,7 +670,8 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     test_BestDistAccuracy(distanzeMinime , distanzeMinimeIndici , best_dists , best_dists_index , time_calls , N , false);
 
     // Test accuracy 2
-    test_difference_int(tempArray_cpu  , bestDist , N , false , INT_MAX , 1);
+    test_difference_int(tempArray_cpu  , bestDist_debug , N , false , INT_MAX , 1);
+    test_difference_float(tempArray_cpu_float  , deltaR_debug , N, true , -1.0 , 2);
 
     
     //Memory deallocation
