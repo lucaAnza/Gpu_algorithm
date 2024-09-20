@@ -294,12 +294,14 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             }
 
             
-            int dist = (int) norm1( imgPyramid+offset_level , imgPyramidRight+offset_levelR , line_size , i_startIL , j_startIL , i_startIR , j_startIR , cols , cols_r , incR , iL);
+            int dist = (int) norm1( imgPyramid+offset_level , imgPyramidRight+offset_levelR , line_size , i_startIL , j_startIL , i_startIR , j_startIR , new_cols , new_cols_r , incR , iL);
             distN[count] = dist;
             
-            /*if(iL == 3){
+            /*
+            if(iL == 421){
                 printf("GPU {%d} RESULT-NORM inc(%d) dist = %d  \n" , time_calls_gpu , incR , dist );
-            }*/
+            }
+            */
 
             
             /* FOR GPU - ATTEMPT1
@@ -331,6 +333,11 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             }
             */
 
+            /*
+            if(iL > 400 && iL < 410){
+                printf("GPU {%d} inc(%d) iL = %lu dist = %d\n" , time_calls_gpu , incR , iL ,  dist);
+            }*/
+
             
             if(dist<bestDist)
             {
@@ -350,7 +357,7 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
     tempArray_gpu[iL] = bestDist;
 
     
-    
+    /*
     if(iL < Nd && miniumDist_gpu[iL] < thOrbDist_gpu ){
 
         // TODO -> this variable are already on the previous if.  you can optimaze
@@ -408,7 +415,7 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
        if(bestincR==-L_gpu || bestincR==L_gpu)
             return;
         */
-
+        /*
         const float dist1 = distN[L_gpu+bestincR-1];
         const float dist2 = distN[L_gpu+bestincR];
         const float dist3 = distN[L_gpu+bestincR+1];   
@@ -421,67 +428,100 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             */
 
         // Re-scaled coordinate
+        /*
         float bestuR = mvScaleFactors_gpu[kpL.octave]*((float)scaleduR0+(float)bestincR+deltaR);
 
         float disparity = (uL-bestuR);
-        
-    }
-
-    __syncthreads();
-
-}
-
-
-void test_BestDistAccuracy( int *distanzeMinimeFromGpu , size_t *indici_distanzeMinimeFromGpu , std::vector<int> best_dists , std::vector<size_t> best_dists_index , int time_calls , int N ){
-
-    printf("{%d}Stampa delle distanze minime e degli indici: \n" , time_calls);
-    int cont_valori=0;
-    int cont_indici=0;
-    for(int i=0 ; i<N ; i++){
-        printf("{%d} %d : GPU -> %d[iR=%lu] , CPU -> %d[iR=%lu]" , time_calls ,  i , distanzeMinimeFromGpu[i] , indici_distanzeMinimeFromGpu[i] , best_dists[i] , best_dists_index[i]);
-        if(distanzeMinimeFromGpu[i] == best_dists[i])
-            cont_valori++;
-        else
-            printf("  ***");
-        if(indici_distanzeMinimeFromGpu[i] == best_dists_index[i])
-            cont_indici++;
-        else printf("  XXX ");
-        
-        printf("\n");
-    }
-    printf("{%d} Percentuale somiglianza valori : %f%% \n" , time_calls , ((float)cont_valori / (float)N) * 100);
-    printf("{%d} Percentuale somiglianza indici : %f%% \n\n\n\n" , time_calls , ((float)cont_indici / (float)N) * 100);
+       
+    }*/
+    
 
 }
 
 
-void test_difference_int( int *array1 , std::vector<int> array2 , int n , bool debug ){
+void test_BestDistAccuracy( int *distanzeMinimeFromGpu , size_t *indici_distanzeMinimeFromGpu , std::vector<int> best_dists , std::vector<size_t> best_dists_index , int time_calls , int N , bool debug  ){
 
-    int cont_valori=0;
-    for(int i=0 ; i<n ; i++){
-        if(array1[i] == array2[i])
-            cont_valori++;
-        else if(debug){
-            printf("[%d] %d - %d  [ gpu - cpu ] \n" , i , array1[i] , array2[i]);
+    if(debug){
+
+        printf("{%d}Stampa delle distanze minime e degli indici: \n" , time_calls);
+        int cont_valori=0;
+        int cont_indici=0;
+        for(int i=0 ; i<N ; i++){
+            printf("{%d} %d : GPU -> %d[iR=%lu] , CPU -> %d[iR=%lu]" , time_calls ,  i , distanzeMinimeFromGpu[i] , indici_distanzeMinimeFromGpu[i] , best_dists[i] , best_dists_index[i]);
+            if(distanzeMinimeFromGpu[i] == best_dists[i])
+                cont_valori++;
+            else
+                printf("  ***");
+            if(indici_distanzeMinimeFromGpu[i] == best_dists_index[i])
+                cont_indici++;
+            else printf("  XXX ");
+            
+            printf("\n");
+        }
+        printf("{%d} Percentuale somiglianza valori : %f%% \n" , time_calls , ((float)cont_valori / (float)N) * 100);
+        printf("{%d} Percentuale somiglianza indici : %f%% \n\n\n\n" , time_calls , ((float)cont_indici / (float)N) * 100);
+    
+    }else{
+        
+        int cont_valori=0;
+        int cont_indici=0;
+        for(int i=0 ; i<N ; i++){
+            
+            if(distanzeMinimeFromGpu[i] == best_dists[i])
+                cont_valori++;
+            
+            if(indici_distanzeMinimeFromGpu[i] == best_dists_index[i])
+                cont_indici++;
+            
+        }
+        float percentuale_valori = ((float)cont_valori / (float)N) * 100;
+        if(percentuale_valori == 100){
+            printf("\t - Test minium distance ✔️ (OK) \n");
+        }else{
+            printf("\t - Test minium distance - ❌ ( rating = %f)\n" , percentuale_valori);
         }
     }
 
-    printf("Percentuale somiglianza valori : %f%% \n"  , ((float)cont_valori / (float)n) * 100);
+}
+
+
+void test_difference_int( int *array1 , std::vector<int> array2 , int n , bool debug , int defaulArrayValue , int testId){
+
+    int cont_valori=0;
+    for(int i=0 ; i<n ; i++){
+        if(array1[i] == array2[i] || (array2[i] == -1 && array1[i] == defaulArrayValue) )
+            cont_valori++;
+        else if(debug){
+            printf("\t\t❌⇩ ⇩ ⇩  [%d] %d - %d  [ gpu - cpu ] \n" , i , array1[i] , array2[i]);
+        }
+    }
+
+    float percentuale_valori = ((float)cont_valori / (float) n) * 100;
+    if(percentuale_valori == 100){
+        printf("\t - Test number %d (OK) ✔️ \n" , testId);
+    }else{
+        printf("\t - Test number %d - ❌ ( rating = %f)\n" ,  testId , percentuale_valori );
+    }
     
 }
 
-void test_difference_float( float *array1 , std::vector<float> array2 , int n , bool debug ){
+void test_difference_float( float *array1 , std::vector<float> array2 , int n , bool debug , float defaulArrayValue , int testId ){
 
     int cont_valori=0;
     for(int i=0 ; i<n ; i++){
         if(array1[i] == array2[i])
             cont_valori++;
         else if(debug){
-            printf("[%d] %f - %f \n" , i , array1[i] , array2[i]);
+            printf("\t\t❌⇩ ⇩ ⇩  [%d] %f - %f \n" , i , array1[i] , array2[i]);
         }
     }
 
-    printf("Percentuale somiglianza valori : %f%% \n"  , ((float)cont_valori / (float)n) * 100);
+    float percentuale_valori = ((float)cont_valori / (float) n) * 100;
+    if(percentuale_valori == 100){
+        printf("\t - Test number %d (OK) ✔️ \n" , testId);
+    }else{
+        printf("\t - Test number %d - ❌ ( rating = %f)\n" , testId ,percentuale_valori);
+    }
     
 }
 
@@ -594,14 +634,18 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     
 
 
-
-    printf("Sto per lanciare il test della GPU by Luca Anzaldi: \n");
-    findMiniumDistance<<<nRows,VROWINDICES_MAX_COL>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
+    int numBlock,threadForBlock;
+    numBlock =nRows;
+    threadForBlock = VROWINDICES_MAX_COL;
+    printf("\n---------------------------------------{%d}----------------------------------------------\n" , time_calls);
+    printf("\nSto per lanciare il test della GPU by Luca Anzaldi: \n");
+    printf("\t - Launching function (findMiniumDistance) :  %d block , %d thread for block ---> total = %d threads \n" , numBlock , threadForBlock , numBlock * threadForBlock );
+    findMiniumDistance<<<numBlock,threadForBlock>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
     cudaDeviceSynchronize();
     // <<< n. of block , thread for block 
-    int numBlock =((int)N/NUM_THREAD)+1;
-    int threadForBlock = NUM_THREAD;
-    printf("Launching %d block , %d thread for block ---> total = %d threads \n" , numBlock , threadForBlock , numBlock * threadForBlock );
+    numBlock =((int)N/NUM_THREAD)+1;
+    threadForBlock = NUM_THREAD;
+    printf("\t - Launching function (slidingWindow) : %d block , %d thread for block ---> total = %d threads \n" , numBlock , threadForBlock , numBlock * threadForBlock );
     slidingWindow<<< numBlock ,threadForBlock , vDistsSize>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images(), mpORBextractorLeft->getd_inputImage() , 
                                                                    mpORBextractorRight->getRows() , mpORBextractorRight->getCols() , mpORBextractorRight->getd_scaleFactor(), mpORBextractorRight->getd_images(), mpORBextractorRight->getd_inputImage() , 
                                                                    mvKeys_gpu,mvKeysRight_gpu, mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu , IL , IR , tempArray_gpu , tempArray_gpu_float);
@@ -610,8 +654,7 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     // DINAMIC ARRAY FOR DEBUGGING 
     cudaMemcpy(tempArray_cpu, tempArray_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
     cudaMemcpy(tempArray_cpu_float, tempArray_gpu_float, sizeof(float) * N, cudaMemcpyDeviceToHost);
-
-    test_difference_int(tempArray_cpu  , bestDist , N , true);
+    
 
     /*
     printf("{%d} GPU Debug of BEST : " , time_calls_gpu);
@@ -623,13 +666,16 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     
 
     //Test - Test the accuracy of minium distance calculated by Gpu
-    printf("partition_factor :%d , thorbdist : %d \n" , part_const , thOrbDist);
+    //printf("partition_factor :%d , thorbdist : %d \n" , part_const , thOrbDist);
     int distanzeMinime[N];
     size_t distanzeMinimeIndici[N];
     cudaMemcpy(distanzeMinime, miniumDist_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);
     cudaMemcpy(distanzeMinimeIndici, miniumDistIndex_gpu, sizeof(size_t) * N, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
-    //test_BestDistAccuracy(distanzeMinime , distanzeMinimeIndici , best_dists , best_dists_index , time_calls , N);
+    test_BestDistAccuracy(distanzeMinime , distanzeMinimeIndici , best_dists , best_dists_index , time_calls , N , false);
+
+    // Test accuracy 2
+    test_difference_int(tempArray_cpu  , bestDist , N , false , INT_MAX , 1);
 
     
     //Memory deallocation

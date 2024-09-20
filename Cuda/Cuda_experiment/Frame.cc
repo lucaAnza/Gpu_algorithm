@@ -135,6 +135,7 @@ void Frame::ComputeStereoMatches()
         // Add this array for testing the accuracy on GPU
         best_dist_line_iL.push_back(bestDist);
         best_dist_line_index_iL.push_back(bestIdxR);
+        bestDist_debug[iL] = -1;
 
         // Subpixel match by correlation
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
@@ -191,7 +192,8 @@ void Frame::ComputeStereoMatches()
             for(int incR=-L; incR<=+L; incR++)
             {
                 cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
-
+                
+                /*
                 if(iL == 3){
                     printf("{%d} comparison(IL-IR) iL = 3  incR = %d: \n" , time_calls ,incR);
                     for (int i = 0; i < IL.rows; ++i) {
@@ -210,12 +212,15 @@ void Frame::ComputeStereoMatches()
                         std::cout << std::endl;
                     }
                 }
+                */
 
 
                 float dist = cv::norm(IL,IR,cv::NORM_L1);   // Esegue la norma1 tra la finestra_sx e la finestra_dx
                 
+                /*
                 if(iL == 3)
                     printf("CPU {%d} incr(%d) norma1 = %f\n\n" , time_calls , incR , dist);
+                */
 
                 if(dist<bestDist)
                 {
@@ -231,12 +236,12 @@ void Frame::ComputeStereoMatches()
             bestDist_debug[iL] = bestDist;
             
             
-
+            /*
             if(iL == 3){
                 for(int i=0 ; i<(2*L+1) ; i++){
                     printf("CPU {%d} VDIST(%d)  =  %f  \n" , time_calls , i ,vDists[i] );  
                 }
-            }
+            }*/
 
             if(bestincR==-L || bestincR==L)
                 continue;
@@ -248,9 +253,9 @@ void Frame::ComputeStereoMatches()
 
             const float deltaR = (dist1-dist3)/(2.0f*(dist1+dist3-2.0f*dist2));
 
-            if(iL > 0){
+            /*if(iL > 0){
                 printf("CPU {%d} iL = %d d1 = %f , d2 = %f  , d3 = %f , deltaR = %f , bestDist =  %d\n" , time_calls  , iL , dist1 , dist2 , dist3 , deltaR, bestDist);
-            }
+            }*/
 
             if(deltaR<-1 || deltaR>1)
                 continue;
@@ -260,7 +265,7 @@ void Frame::ComputeStereoMatches()
 
             float disparity = (uL-bestuR);
 
-            printf("CPU {%d} iL = %d bestUr = %f , disparity = %f\n" , time_calls  , iL , bestuR , disparity);
+            //printf("CPU {%d} iL = %d bestUr = %f , disparity = %f\n" , time_calls  , iL , bestuR , disparity);
 
             if(disparity>=minD && disparity<maxD)
             {
