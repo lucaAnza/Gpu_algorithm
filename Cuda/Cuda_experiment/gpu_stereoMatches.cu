@@ -684,7 +684,7 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
 
     // Test accuracy 2
     test_difference_int(tempArray_cpu  , bestDist_debug , N , false , INT_MAX , 1);  // TODO : bestDist sometimes has 1/2025 value errate 
-    test_difference_float(tempArray_cpu_float  , bestuR_debug , N, true , -1.0 , 2);  //next mvuRight
+    test_difference_float(tempArray_cpu_float  , bestuR_debug , N, false , -1.0 , 2);  //next mvuRight
 
     
     //Memory deallocation
@@ -697,6 +697,12 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaFree(size_refer_gpu);
     cudaFree(incremental_size_refer_gpu);
     cudaFree(vRowIndices_gpu);
+    cudaFree(miniumDist_gpu);
+    cudaFree(miniumDistIndex_gpu);
+    cudaFree(IL);
+    cudaFree(IR);
+    cudaFree(tempArray_gpu);
+    cudaFree(tempArray_gpu_float);
 
 
 
