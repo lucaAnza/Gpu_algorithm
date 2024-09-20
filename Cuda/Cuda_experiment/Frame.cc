@@ -143,6 +143,8 @@ void Frame::ComputeStereoMatches()
         bestuR_debug[iL] = -1;
         disparity_debug[iL] = -1;
         bestDist_debug[iL] = -1;
+        mvDepth[iL]=-1;
+        mvuRight[iL] = -1;
 
         // Subpixel match by correlation
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
@@ -278,6 +280,11 @@ void Frame::ComputeStereoMatches()
 
             float disparity = (uL-bestuR);
 
+
+            //luke_add
+            bestuR_debug[iL] = bestuR;
+            disparity_debug[iL] = disparity;
+
             //printf("CPU {%d} iL = %d bestUr = %f , disparity = %f\n" , time_calls  , iL , bestuR , disparity);
 
             if(disparity>=minD && disparity<maxD)
@@ -295,7 +302,7 @@ void Frame::ComputeStereoMatches()
     }
 
     // Chiama la funzione parallela di stereo matching     (luke_add)
-    gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL ,  best_dist_line_index_iL , 
+    gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL ,  best_dist_line_index_iL ,  mb , mbf,
                     bestDist_debug , dist1_debug , dist2_debug , dist3_debug , deltaR_debug , bestuR_debug , disparity_debug, mvDepth , mvuRight);
 
     sort(vDistIdx.begin(),vDistIdx.end());
