@@ -188,7 +188,7 @@ __device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , i
 
 __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar *d_images  , uchar *d_inputImage , int rows_r , int cols_r , 
                                float *scaleFactorsRight, uchar *d_imagesR , uchar *d_inputImageR ,cv::KeyPoint *mvKeys_gpu , cv::KeyPoint *mvKeysRight_gpu , float *mvInvScaleFactors_gpu  , float *mvScaleFactors_gpu , int *miniumDist_gpu , size_t *miniumDistIndex_gpu , float *IL , float *IR , int *tempArray_gpu , float* tempArray_gpu_float , 
-                               int* vDistIdx_gpu){
+                               int* vDistIdx_gpu , float *mvDepth_gpu , float *mvuRight_gpu  ){
 
     extern __shared__ int vDists[];  
     size_t id = threadIdx.x;   
@@ -202,6 +202,8 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
     tempArray_gpu[iL] = -1;
     tempArray_gpu_float[iL] = -1.0;
     vDistIdx_gpu[iL] = -1;
+    mvuRight_gpu[iL] = -1;
+    mvDepth_gpu[iL] = -1;
 
     if(iL < Nd && miniumDist_gpu[iL] < thOrbDist_gpu ){  //if(bestDist<thOrbDist)
 
@@ -444,6 +446,8 @@ __global__ void slidingWindow( int rows , int cols , float *scaleFactors , uchar
             }
             //mvDepth[iL]=mbf/disparity;
             //mvuRight[iL] = bestuR;
+            mvDepth_gpu[iL] = mbf_gpu/disparity;
+            mvuRight_gpu[iL] = bestuR;
             vDistIdx_gpu[iL] = bestDist;
             //vDistIdx.push_back(pair<int,int>(bestDist,iL));
         }
@@ -547,8 +551,8 @@ void test_difference_float( float *array1 , std::vector<float> array2 , int n , 
 
 void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::ORBextractor *mpORBextractorRight , int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist ,cv::Mat mDescriptors , cv::Mat mDescriptorsRight , 
                       std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer , std::vector<int> best_dists , std::vector<size_t> best_dists_index , float mb , float mbf , 
-                      std::vector<int> bestDist_debug , std::vector<float> dist1_debug , std::vector<float> dist2_debug , std::vector<float> dist3_debug , std::vector<float> deltaR_debug , std::vector<float> bestuR_debug , std::vector<float> disparity_debug, std::vector<float> mvDepth , std::vector<float> mvuRight,
-                      std::vector<std::pair<int, int>>& vDistIdx_clone) {
+                      std::vector<int> bestDist_debug , std::vector<float> dist1_debug , std::vector<float> dist2_debug , std::vector<float> dist3_debug , std::vector<float> deltaR_debug , std::vector<float> bestuR_debug , std::vector<float> disparity_debug, std::vector<float> &mvDepth_clone , std::vector<float> &mvuRight_clone,
+                      std::vector<std::pair<int, int>>& vDistIdx_clone ) {
 
     cv::KeyPoint *mvKeys_gpu;
     cv::KeyPoint *mvKeysRight_gpu;
@@ -647,13 +651,18 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     // DINAMIC ARRAY FOR DEBUGGING (AFTER KERNEL CALL THERE IS AN OTHER)
     int *tempArray_gpu;
     int *vDistIdx_gpu;
+    float *mvDepth_gpu;
+    float *mvuRight_gpu;
     float *tempArray_gpu_float;
     int tempArray_cpu[N];
     int vDistIdx_cpu[N];
     float tempArray_cpu_float[N];
     cudaMalloc(&tempArray_gpu , sizeof(int) * N );
     cudaMalloc(&tempArray_gpu_float , sizeof(float) * N );
-    cudaMalloc(&vDistIdx_gpu , sizeof(float) * N );
+    cudaMalloc(&vDistIdx_gpu , sizeof(int) * N );
+    cudaMalloc(&mvDepth_gpu , sizeof(float) * N );
+    cudaMalloc(&mvuRight_gpu , sizeof(float) * N );
+        
     
     
     
@@ -673,7 +682,7 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     printf("\t - Launching function (slidingWindow) : %d block , %d thread for block ---> total = %d threads \n" , numBlock , threadForBlock , numBlock * threadForBlock );
     slidingWindow<<< numBlock ,threadForBlock , vDistsSize>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images(), mpORBextractorLeft->getd_inputImage() , 
                                                                    mpORBextractorRight->getRows() , mpORBextractorRight->getCols() , mpORBextractorRight->getd_scaleFactor(), mpORBextractorRight->getd_images(), mpORBextractorRight->getd_inputImage() , 
-                                                                   mvKeys_gpu,mvKeysRight_gpu, mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu , IL , IR , tempArray_gpu , tempArray_gpu_float , vDistIdx_gpu);
+                                                                   mvKeys_gpu,mvKeysRight_gpu, mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu , IL , IR , tempArray_gpu , tempArray_gpu_float , vDistIdx_gpu , mvDepth_gpu , mvuRight_gpu);
     cudaDeviceSynchronize();
     
     // DINAMIC ARRAY FOR DEBUGGING 
@@ -696,7 +705,10 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     //test_difference_float(tempArray_cpu_float  , bestuR_debug , N, false , -1.0 , 2);  //next mvuRight
 
 
-    // Fill vDistIdx
+    // Fill vDistIdx , mvuRight , mvDepth
+    cudaMemcpy(mvDepth_clone.data(), mvDepth_gpu, N * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(mvuRight_clone.data(), mvuRight_gpu, N * sizeof(float), cudaMemcpyDeviceToHost);
+    
     int bestDist;
     for(int i=0 ; i<N ; i++){
         bestDist = vDistIdx_cpu[i];

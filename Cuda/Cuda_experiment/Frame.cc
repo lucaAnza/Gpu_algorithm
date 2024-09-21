@@ -1,16 +1,23 @@
-float getSimilarityRate(std::vector<std::pair<int, int>> v1, std::vector<std::pair<int, int>> v2) {
-    
-    sort(v1.begin(), v1.end());
-    sort(v2.begin(), v2.end());
+template <typename Container>
+float getSimilarityRate(const Container& v1, const Container& v2) {
 
+    // Controlla che abbiano la stessa dimensione
+    std::cout << "size v1 = " << v1.size() << " , size v2 = " << v2.size() << std::endl;
+
+    if (v1.size() != v2.size()) {
+        return 0.0f;  // Se le dimensioni non coincidono, non c'è somiglianza
+    }
+
+    // Conta i matching pairs
     int matchingPairs = 0;
     for (size_t i = 0; i < v1.size(); ++i) {
-        if ( (v1[i].first == v2[i].first) && (v1[i].second == v2[i].second) ) {
+        if (v1[i] == v2[i]) {
             matchingPairs++;
         }
     }
 
-    float similarityRate = ((float)matchingPairs / (float) v1.size()) * 100;
+    // Calcola il tasso di similarità
+    float similarityRate = (static_cast<float>(matchingPairs) / static_cast<float>(v1.size())) * 100;
     return similarityRate;
 }
 
@@ -41,6 +48,8 @@ void Frame::ComputeStereoMatches()
 
     mvuRight = vector<float>(N,-1.0f);
     mvDepth = vector<float>(N,-1.0f);
+    std::vector<float> mvuRight_clone = vector<float>(N,-1.0f);
+    std::vector<float> mvDepth_clone = vector<float>(N,-1.0f);
 
     const int thOrbDist = (ORBmatcher::TH_HIGH+ORBmatcher::TH_LOW)/2;  // Calcola una soglia
 
@@ -323,10 +332,13 @@ void Frame::ComputeStereoMatches()
 
     // Chiama la funzione parallela di stereo matching     (luke_add)
     gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL ,  best_dist_line_index_iL ,  mb , mbf,
-                    bestDist_debug , dist1_debug , dist2_debug , dist3_debug , deltaR_debug , bestuR_debug , disparity_debug, mvDepth , mvuRight , vDistIdx_clone);
+                    bestDist_debug , dist1_debug , dist2_debug , dist3_debug , deltaR_debug , bestuR_debug , disparity_debug, mvDepth_clone , mvuRight_clone , vDistIdx_clone);
 
-    printf("{%d} mathing pairs : %f %% \n" , time_calls , getSimilarityRate(vDistIdx , vDistIdx_clone));
     sort(vDistIdx.begin(),vDistIdx.end());
+    sort(vDistIdx_clone.begin(),vDistIdx_clone.end());
+    printf("{%d} mathing pairs vDistIdx : %f %% \n" , time_calls , getSimilarityRate(vDistIdx , vDistIdx_clone));
+    printf("{%d} mathing pairs mvuRight : %f %% \n" , time_calls , getSimilarityRate(mvuRight , mvuRight_clone));
+    printf("{%d} mathing pairs mvDepth : %f %% \n" , time_calls , getSimilarityRate(mvDepth , mvDepth_clone));
     const float median = vDistIdx[vDistIdx.size()/2].first;
     const float thDist = 1.5f*1.4f*median;
 
