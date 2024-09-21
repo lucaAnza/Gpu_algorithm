@@ -1,4 +1,4 @@
-e# Experiment Cuda
+# Experiment Cuda
 
 
 
@@ -95,7 +95,15 @@ std::vector<size_t> size_refer                  // Cuda Global Memory
 
 <br>
 
-3.Creare array per navigazione della struttura dati principale <b>vRowIndices</b> (array multi-dimensionale irregolare).
+3.Capire quali variabili verranno modificate dall'algoritmo:
+
+```c++
+mvuRight = vector<float>(N,-1);   // N is about 2025
+mvDepth = vector<float>(N,-1);    // N is about 2025
+vector<pair<int, int> > vDistIdx;  // element of vDistIdx < N
+```
+
+4.Creare array per navigazione della struttura dati principale <b>vRowIndices</b> (array multi-dimensionale irregolare).
 
 <b> size_refer </b> + <b> incremental_size_refer </b>
 
@@ -106,7 +114,7 @@ std::vector<size_t> size_refer                  // Cuda Global Memory
 
 <br>
 
-4.Riscrittura della funzione ```int ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b)``` trasformandola in una funzione `__device__`.
+5.Riscrittura della funzione ```int ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b)``` trasformandola in una funzione `__device__`.
 
 
 - Funzione originale :
@@ -153,7 +161,7 @@ __device__ int DescriptorDistance(const unsigned char *a, const unsigned char* b
 ```
 <br><br>
 
-5.Analisi di <b>ORBextractor.h</b> per capire se è possibile l'utilizzo di variabili già salvate nella GPU.
+6.Analisi di <b>ORBextractor.h</b> per capire se è possibile l'utilizzo di variabili già salvate nella GPU.
 
 ```c++
 // ORBSLAM3/include/ORBextractor.h
@@ -178,7 +186,7 @@ Graphic explanation:
 <img src="img/piramid_on_gpu.png" width=50% alt=""> </img><br><br>
 
 
-6.Aggiunta dei getter per ottenere i dati necessari
+7.Aggiunta dei getter per ottenere i dati necessari
 
 ```c++
 // ORBSLAM3/include/ORBextractor.h
@@ -196,5 +204,40 @@ uchar *getd_images(){
 
 float* getd_scaleFactor(){
     return d_scaleFactor;
+}
+```
+
+8.Scrittura di una funzione di tipo __device__ necessaria per calcolare la norma1 senza l'utilizzo di OpenCV.
+
+```c++
+// Calculate Norm1 of 2 vector with the same lenght
+__device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , int j1 , int i2 , int j2 , int cols1 , int cols2 , int incR , int iL){
+
+    float sum = 0;
+    int countRow = 0;
+    int countCol = 0;
+    int j1_temp = j1;
+    int j2_temp = j2;
+    while(countRow < size){
+        while(countCol < size){
+            int index1 = ( (i1*cols1) + j1 );
+            int index2 = ( (i2*cols2) + j2 );
+            //if(iL == 3)
+            //printf("GPU {%d} iL = %d inc(%d) element[%d][%d] = %u - %u \n" , time_calls_gpu , iL , incR , countRow , countCol ,V1[index1] , V2[index2]);
+            sum = sum + abs(((float) V1[index1] - (float) V2[index2]));
+            countCol++;
+            j1++;
+            j2++;
+        }
+        i1++;
+        i2++;
+        j1 = j1_temp;
+        j2 = j2_temp;
+        countCol = 0;
+        countRow++;
+    }
+
+    return sum;
+    
 }
 ```
