@@ -18,10 +18,11 @@
 
 
 
-void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::ORBextractor *mpORBextractorRight , int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , std::vector<cv::KeyPoint> mvKeysRight , float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist , cv::Mat mDescriptors , cv::Mat mDescriptorsRight ,
-                        std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer , std::vector<int> best_dists , std::vector<size_t> best_dists_index, float mb , float mbf ,
-                        std::vector<int> bestDist_debug , std::vector<float> dist1_debug , std::vector<float> dist2_debug , std::vector<float> dist3_debug , std::vector<float> deltaR_debug , std::vector<float> bestuR_debug , std::vector<float> disparity_debug, std::vector<float> mvDepth , std::vector<float> mvuRight, // THIS LINE IS RESERVE TO DEBUG ARRAY
-                        std::vector<std::pair<int, int>>& vDistIdx_clone) ;  
+void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::ORBextractor *mpORBextractorRight , int time_calls , std::vector<std::vector<size_t>> vRowIndices , std::vector<cv::KeyPoint> mvKeys , 
+                      std::vector<cv::KeyPoint> mvKeysRight , 
+                      float minZ , float minD , float maxD , int TH_HIGH , int thOrbDist , cv::Mat mDescriptors , cv::Mat mDescriptorsRight ,
+                      std::vector<float> mvInvScaleFactors , std::vector<float> mvScaleFactors , std::vector<size_t> size_refer , float mbf , 
+                      std::vector<float> &mvDepth_clone , std::vector<float> &mvuRight_clone, std::vector<std::pair<int, int>>& vDistIdx_clone);  
 
 
 #endif
