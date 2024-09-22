@@ -733,6 +733,9 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     cudaFree(IR);
     cudaFree(tempArray_gpu);
     cudaFree(tempArray_gpu_float);
+    cudaFree(vDistIdx_gpu);
+    cudaFree(mvDepth_gpu);
+    cudaFree(mvuRight_gpu);
 
 
 
