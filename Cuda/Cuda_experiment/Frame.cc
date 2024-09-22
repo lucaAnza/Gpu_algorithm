@@ -1,14 +1,10 @@
 template <typename Container>
 float getSimilarityRate(const Container& v1, const Container& v2) {
 
-    // Controlla che abbiano la stessa dimensione
-    std::cout << "size v1 = " << v1.size() << " , size v2 = " << v2.size() << std::endl;
-
     if (v1.size() != v2.size()) {
-        return 0.0f;  // Se le dimensioni non coincidono, non c'è somiglianza
+        return 0.0f;  
     }
 
-    // Conta i matching pairs
     int matchingPairs = 0;
     for (size_t i = 0; i < v1.size(); ++i) {
         if (v1[i] == v2[i]) {
@@ -16,7 +12,7 @@ float getSimilarityRate(const Container& v1, const Container& v2) {
         }
     }
 
-    // Calcola il tasso di similarità
+    // Calculate similarity 
     float similarityRate = (static_cast<float>(matchingPairs) / static_cast<float>(v1.size())) * 100;
     return similarityRate;
 }
@@ -48,8 +44,11 @@ void Frame::ComputeStereoMatches()
 
     mvuRight = vector<float>(N,-1.0f);
     mvDepth = vector<float>(N,-1.0f);
+    //luke_add (return data from GPU)
     std::vector<float> mvuRight_clone = vector<float>(N,-1.0f);
     std::vector<float> mvDepth_clone = vector<float>(N,-1.0f);
+    vector<pair<int, int> > vDistIdx_clone;
+    vDistIdx_clone.reserve(N);
 
     const int thOrbDist = (ORBmatcher::TH_HIGH+ORBmatcher::TH_LOW)/2;  // Calcola una soglia
 
@@ -91,20 +90,11 @@ void Frame::ComputeStereoMatches()
     const float minD = 0;
     const float maxD = mbf/minZ;
 
-    //ATTEMPT
-    //uchar* testArr = mpORBextractorLeft->getd_images();
-    //printf("DFSF= %u\n" , testArr[0]);
-    //printf("DFSF= %u\n" , testArr[1]);
     
-    vector<int> best_dist_line_iL;  // (luke add)
-    vector<size_t> best_dist_line_index_iL;  // (luke add)
-
     // For each left keypoint search a match in the right image  -> I candidati possibili sono nel vettore "vRowIndices -> vCandidates"
     vector<pair<int, int> > vDistIdx;
     vDistIdx.reserve(N);
-    //luke_add
-    vector<pair<int, int> > vDistIdx_clone;
-    vDistIdx_clone.reserve(N);
+    
     
     
     for(int iL=0; iL<N; iL++)          // Iterazione dei punti chiave SX
@@ -136,11 +126,7 @@ void Frame::ComputeStereoMatches()
             
             const size_t iR = vCandidates[iC];     // iR assume l'indice di ogni candidato
 
-
-            //printf("{%d}[CPU]element of mvKeys[iL].pt.y(vL) : %f ,  iL[%d] iR[%lu] take index : %lu  \n" , time_calls , mvKeys[iL].pt.y  ,iL , iR , iC ); 
             const cv::KeyPoint &kpR = mvKeysRight[iR];   // kpR assume il valore del punto corrispondente al candidato
-
-            //printf("{%d}[CPU] going to calculate dist of element iL[%d] iR[%lu] , num-elem = %d \n" , time_calls , iL , iR , vCandidates.size() );
 
             if(kpR.octave<levelL-1 || kpR.octave>levelL+1)  // kpR.octave rappresenta il livello piramidale (scala) del punto a DX, levelL di quello a SX
                 continue;
@@ -150,8 +136,8 @@ void Frame::ComputeStereoMatches()
             if(uR>=minU && uR<=maxU)    // Controllo se la x del keypointCandidatoDX sta in un range
             {
                 const cv::Mat &dR = mDescriptorsRight.row(iR);  
-                const int dist = ORBmatcher::DescriptorDistance(dL,dR);   // restituisce la distanza tra riga DX e SX (DA APPROFONDIRE)
-                //printf("{%d}[CPU] distance of element iL[%d] iR[%lu] : %d , num-elem = %d \n" , time_calls , iL , iR , dist, vCandidates.size() );
+                const int dist = ORBmatcher::DescriptorDistance(dL,dR);   // restituisce la distanza tra riga DX e SX 
+                
                 if(dist<bestDist)
                 {
                     bestDist = dist;
@@ -160,25 +146,9 @@ void Frame::ComputeStereoMatches()
             }
         }
 
-        //printf("{%d} [CPU] Distanza minimima della linea iL(%d) = %d\n" , time_calls , iL , bestDist);
-        // Add this array for testing the accuracy on GPU
-        best_dist_line_iL.push_back(bestDist);
-        best_dist_line_index_iL.push_back(bestIdxR);
-        bestDist_debug[iL] = -1;
-        dist1_debug[iL] = -1;
-        dist2_debug[iL] = -1;
-        dist3_debug[iL] = -1;
-        deltaR_debug[iL] = -1;
-        bestuR_debug[iL] = -1;
-        disparity_debug[iL] = -1;
-        bestDist_debug[iL] = -1;
-        mvDepth[iL]=-1;
-        mvuRight[iL] = -1;
-
         // Subpixel match by correlation
         if(bestDist<thOrbDist)    // vede se il punto migliore dei candidati supera una determinata soglia.
         {   
-            //printf("{%d}CPU iL = %d kpl.octave : %d , size of the piramid : h=%d , w=%d \n" , time_calls ,iL , kpL.octave , mpORBextractorLeft->mvImagePyramid[kpL.octave].size().height , mpORBextractorLeft->mvImagePyramid[kpL.octave].size().width);
             // coordinates in image pyramid at keypoint scale
             const float uR0 = mvKeysRight[bestIdxR].pt.x;        // Prende il valore della x del miglior candidato tra i KeyPoint_Right
             const float scaleFactor = mvInvScaleFactors[kpL.octave];   // Ottiene la scaleFactor da KeyPoint_Left
@@ -191,22 +161,6 @@ void Frame::ComputeStereoMatches()
             // Estrae una sottomatrice per il KeyPoint_Left
             cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1); 
 
-            /*
-            //(luke_add) IF Created for debug (iL == -1 to disable debug)
-            if(iL == 421 || iL == 422 | iL == 899 | iL == 900 | iL == 3 | iL == 4){
-                int rows = mpORBextractorLeft->mvImagePyramid[kpL.octave].size().height;
-                int cols = mpORBextractorLeft->mvImagePyramid[kpL.octave].size().width;
-                rows = 10; // FOR TESTING - original for should be from i -> rows
-                cols = 10; // FOR TESTING - original for should be from j -> cols
-                for (int i=0 ; i<rows ; i++){
-                    for(int j=0 ; j<cols ; j++){
-                        int index = (i*cols) + j;
-                        printf("{%d}\tCPU - iL[%d] - mvImagePyramid[%d] array of size[%d][%d] = [%d][%d] : %u \n" ,time_calls , iL , kpL.octave , rows,cols,i,j, mpORBextractorLeft->mvImagePyramid[kpL.octave].at<uchar>(i,j));   
-                    }
-                }
-            } //////// Finish IF debug
-            */
-
             int bestDist = INT_MAX;
             int bestincR = 0;    // è il miglior spostamento della windows
             const int L = 5;
@@ -215,14 +169,10 @@ void Frame::ComputeStereoMatches()
 
             // calcolano i limiti della finestra scorrevole nella quale verrà effettuata la ricerca dei punti
 
-            
-
             const float iniu = scaleduR0+L-w;       
             const float endu = scaleduR0+L+w+1;
 
-            //printf("{%d}CPU iL[%d] PRE-FILTER iniu = %f , endu = %f FILTER = %u \n" , time_calls , iL , iniu , endu , mpORBextractorRight->mvImagePyramid[kpL.octave].cols) ;
-            //printf("scaledvL = %f , scaleduR0 = %f \n" ,scaledvL , scaleduR0);
-
+        
             if(iniu<0 || endu >= mpORBextractorRight->mvImagePyramid[kpL.octave].cols)   // per evitare di uscire dai range
                 continue;
 
@@ -231,35 +181,8 @@ void Frame::ComputeStereoMatches()
             {
                 cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
                 
-                /*
-                if(iL == 3){
-                    printf("{%d} comparison(IL-IR) iL = 3  incR = %d: \n" , time_calls ,incR);
-                    for (int i = 0; i < IL.rows; ++i) {
-                        for (int j = 0; j < IL.cols; ++j) {
-                            // Se l'immagine è a 1 canale (grayscale)
-                            if (IL.channels() == 1) {
-                                std::cout << (int)IL.at<uchar>(i, j) << "-";
-                                std::cout << (int)IR.at<uchar>(i, j) << " ";
-                            }
-                            // Se l'immagine è a 3 canali (RGB)
-                            else if (IL.channels() == 3) {
-                                cv::Vec3b pixel = IL.at<cv::Vec3b>(i, j);
-                                std::cout << "(" << (int)pixel[0] << ", " << (int)pixel[1] << ", " << (int)pixel[2] << ") ";
-                            }
-                        }
-                        std::cout << std::endl;
-                    }
-                }
-                */
-
-
                 float dist = cv::norm(IL,IR,cv::NORM_L1);   // Esegue la norma1 tra la finestra_sx e la finestra_dx
                 
-                /*
-                if(iL == 3)
-                    printf("CPU {%d} incr(%d) norma1 = %f\n\n" , time_calls , incR , dist);
-                */
-
                 if(dist<bestDist)
                 {
                     bestDist =  dist;
@@ -268,18 +191,7 @@ void Frame::ComputeStereoMatches()
 
                 vDists[L+incR] = dist;
             }
-
-
-            //luke_add
-            bestDist_debug[iL] = bestDist;
             
-            
-            /*
-            if(iL == 3){
-                for(int i=0 ; i<(2*L+1) ; i++){
-                    printf("CPU {%d} VDIST(%d)  =  %f  \n" , time_calls , i ,vDists[i] );  
-                }
-            }*/
 
             if(bestincR==-L || bestincR==L)
                 continue;
@@ -291,16 +203,6 @@ void Frame::ComputeStereoMatches()
 
             const float deltaR = (dist1-dist3)/(2.0f*(dist1+dist3-2.0f*dist2));
 
-            //luke_add
-            dist1_debug[iL] = dist1;
-            dist2_debug[iL] = dist2;
-            dist3_debug[iL] = dist3;
-            deltaR_debug[iL] = deltaR;
-
-            /*if(iL > 0){
-                printf("CPU {%d} iL = %d d1 = %f , d2 = %f  , d3 = %f , deltaR = %f , bestDist =  %d\n" , time_calls  , iL , dist1 , dist2 , dist3 , deltaR, bestDist);
-            }*/
-
             if(deltaR<-1 || deltaR>1)
                 continue;
 
@@ -308,13 +210,6 @@ void Frame::ComputeStereoMatches()
             float bestuR = mvScaleFactors[kpL.octave]*((float)scaleduR0+(float)bestincR+deltaR);
 
             float disparity = (uL-bestuR);
-
-
-            //luke_add
-            bestuR_debug[iL] = bestuR;
-            disparity_debug[iL] = disparity;
-
-            //printf("CPU {%d} iL = %d bestUr = %f , disparity = %f\n" , time_calls  , iL , bestuR , disparity);
 
             if(disparity>=minD && disparity<maxD)
             {
@@ -331,9 +226,10 @@ void Frame::ComputeStereoMatches()
     }
 
     // Chiama la funzione parallela di stereo matching     (luke_add)
-    gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , best_dist_line_iL ,  best_dist_line_index_iL ,  mb , mbf,
-                    bestDist_debug , dist1_debug , dist2_debug , dist3_debug , deltaR_debug , bestuR_debug , disparity_debug, mvDepth_clone , mvuRight_clone , vDistIdx_clone);
+    gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , mbf, mvDepth_clone , mvuRight_clone , vDistIdx_clone);
 
+
+    // Debug on GPU algoritm accuracy
     sort(vDistIdx.begin(),vDistIdx.end());
     sort(vDistIdx_clone.begin(),vDistIdx_clone.end());
     printf("{%d} mathing pairs vDistIdx : %f %% \n" , time_calls , getSimilarityRate(vDistIdx , vDistIdx_clone));
@@ -353,3 +249,4 @@ void Frame::ComputeStereoMatches()
         }
     }
 }
+
