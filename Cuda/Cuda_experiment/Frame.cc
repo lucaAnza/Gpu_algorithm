@@ -1,54 +1,13 @@
-template <typename Container>
-float getSimilarityRate(const Container& v1, const Container& v2) {
-
-    if (v1.size() != v2.size()) {
-        return 0.0f;  
-    }
-
-    int matchingPairs = 0;
-    for (size_t i = 0; i < v1.size(); ++i) {
-        if (v1[i] == v2[i]) {
-            matchingPairs++;
-        }
-    }
-
-    // Calculate similarity 
-    float similarityRate = (static_cast<float>(matchingPairs) / static_cast<float>(v1.size())) * 100;
-    return similarityRate;
-}
-
 int time_calls = 0;   //(luke_add)
 
 void Frame::ComputeStereoMatches()
 {      
     
-    // luke_add : 
-    vector<float> dist1_debug;
-    vector<float> dist2_debug;
-    vector<float> dist3_debug;
-    vector<float> deltaR_debug;
-    vector<float> bestuR_debug;
-    vector<float> disparity_debug;
-    vector<int> bestDist_debug;
-    dist1_debug.resize(N);
-    dist2_debug.resize(N);
-    dist3_debug.resize(N);
-    deltaR_debug.resize(N);
-    bestuR_debug.resize(N);
-    disparity_debug.resize(N);
-    bestDist_debug.resize(N);
-
-
     time_calls++;
     
 
     mvuRight = vector<float>(N,-1.0f);
     mvDepth = vector<float>(N,-1.0f);
-    //luke_add (return data from GPU)
-    std::vector<float> mvuRight_clone = vector<float>(N,-1.0f);
-    std::vector<float> mvDepth_clone = vector<float>(N,-1.0f);
-    vector<pair<int, int> > vDistIdx_clone;
-    vDistIdx_clone.reserve(N);
 
     const int thOrbDist = (ORBmatcher::TH_HIGH+ORBmatcher::TH_LOW)/2;  // Calcola una soglia
 
@@ -61,6 +20,7 @@ void Frame::ComputeStereoMatches()
     //Assign keypoints to row table
     vector<vector<size_t> > vRowIndices(nRows,vector<size_t>());   // Crea una matrice con nRows vettori 
 
+    //luke_add
     for(int i=0; i<nRows; i++){
         vRowIndices[i].reserve(200);   // Si prevedono almeno 200 punti chiave per ogni riga dell'immagine LEFT
         size_refer[i] = 0;  // Init of the array (luke_add)
@@ -96,7 +56,8 @@ void Frame::ComputeStereoMatches()
     vDistIdx.reserve(N);
     
     
-    
+    /* CPU - Function - Trasformed into a GPU*/
+    /*
     for(int iL=0; iL<N; iL++)          // Iterazione dei punti chiave SX
     {
         const cv::KeyPoint &kpL = mvKeys[iL];
@@ -224,17 +185,13 @@ void Frame::ComputeStereoMatches()
             }
         }
     }
+    */
+    
 
-    // Chiama la funzione parallela di stereo matching     (luke_add)
-    gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , mbf, mvDepth_clone , mvuRight_clone , vDistIdx_clone);
-
-
-    // Debug on GPU algoritm accuracy
+    // Chiama la funzione parallela di stereo matching
+    gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , mbf, mvDepth , mvuRight , vDistIdx);
     sort(vDistIdx.begin(),vDistIdx.end());
-    sort(vDistIdx_clone.begin(),vDistIdx_clone.end());
-    printf("{%d} mathing pairs vDistIdx : %f %% \n" , time_calls , getSimilarityRate(vDistIdx , vDistIdx_clone));
-    printf("{%d} mathing pairs mvuRight : %f %% \n" , time_calls , getSimilarityRate(mvuRight , mvuRight_clone));
-    printf("{%d} mathing pairs mvDepth : %f %% \n" , time_calls , getSimilarityRate(mvDepth , mvDepth_clone));
+
     const float median = vDistIdx[vDistIdx.size()/2].first;
     const float thDist = 1.5f*1.4f*median;
 
@@ -249,4 +206,3 @@ void Frame::ComputeStereoMatches()
         }
     }
 }
-
