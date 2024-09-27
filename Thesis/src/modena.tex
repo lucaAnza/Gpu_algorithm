@@ -2,6 +2,23 @@
 \usepackage[italian]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage{parskip}        % fa in modo che ogni paragrafo sia spaziato e non abbia l'indentazione
+\usepackage{hyperref}       % Per gestire i collegamenti ipertestuali
+\usepackage{listings} % Pacchetto per il codice
+\usepackage{xcolor} % Opzionale, per colorare il codice
+\lstset{
+  language=C++,             % Linguaggio
+  basicstyle=\ttfamily,      % Stile del testo
+  keywordstyle=\color{blue}, % Colore delle parole chiave
+  commentstyle=\color{gray}, % Colore dei commenti
+  stringstyle=\color{red},   % Colore delle stringhe
+  numbers=left,              % Numeri di riga a sinistra
+  numberstyle=\tiny,         % Stile dei numeri di riga
+  stepnumber=1,              % Mostra un numero di riga per ogni riga
+  breaklines=true,           % Spezza automaticamente le righe lunghe
+  frame=single,              % Cornice attorno al codice
+  tabsize=4                  % Imposta la dimensione del tab
+}
+
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{fancyhdr}
 \usepackage{indentfirst}
@@ -12,11 +29,8 @@
 \usepackage{float}
 \usepackage{subfigure}
 \usepackage{subcaption}
-\usepackage{biblatex}
-\addbibresource{biblio.bib}
 
 \graphicspath{ {./images/} }
-\usepackage[hidelinks]{hyperref}
 \newcommand{\sign}{\text{sign}}
 
 \hypersetup{
@@ -84,11 +98,47 @@ Nella trattazione verrà esaminato l'approccio usato per ottimizare l'algoritmo 
 
 \chapter{Panoramica dei linguaggi paralleli}
 
+\section{Introduzione}
+
 La programmazione parallela si basa sull’esecuzione contemporanea di più istruzioni o blocchi di codice, sfruttando risorse hardware multiprocessore, multicore o acceleratori come le GPU (\textbf{Graphics Processing Units}). A differenza della programmazione sequenziale tradizionale, che esegue le istruzioni una dopo l’altra, la programmazione parallela permette di dividere i problemi in sottoproblemi più piccoli, i quali possono essere risolti simultaneamente, aumentando l’efficienza complessiva del sistema.
 
 Uno dei linguaggi di programmazione parallela più diffusi è \textbf{CUDA} (Compute Unified Device Architecture), un framework sviluppato da \textit{NVIDIA}.    Esso consente di sfruttare la potenza delle GPU per eseguire calcoli ad alte prestazioni, trasformando le unità grafiche in potenti strumenti di elaborazione general-purpose. Attraverso CUDA, gli sviluppatori possono scrivere codice in \textbf{C}, \textbf{C++} o Python, che viene successivamente parallelizzato e distribuito tra le varie unità di calcolo della GPU.
 
 Inoltre, esistono altri linguaggi e API orientati alla programmazione parallela, come OpenCL, che offre un approccio più generalista e multi-piattaforma, permettendo di sfruttare anche altre tipologie di hardware, come \textbf{CPU} e \textbf{FPGA}. Questi strumenti sono oggi fondamentali per affrontare i carichi di lavoro che richiedono un’enorme quantità di calcoli in tempi contenuti, portando significativi benefici in campi come il machine learning, la crittografia, l’elaborazione video e le simulazioni fisiche.
+
+\section{Differenza di architettura tra CPU e GPU}
+
+L'architettura della CPU e della GPU può essere confrontata in maniera sintetica. La CPU è progettata per ridurre la latenza, ossia cerca di ottenere i risultati delle operazioni nel minor tempo possibile. Per fare questo, dispone di \textbf{cache L1} di grandi dimensioni, che aiutano a ridurre la latenza media dei dati, e utilizza poche unità logiche aritmetiche ad alte prestazioni per calcolare velocemente i risultati. I modelli moderni di CPU sfruttano anche il parallelismo a livello di istruzione, elaborando in anticipo risultati parziali per ridurre ulteriormente i tempi di attesa. Al contrario, l'architettura della GPU è orientata al \textbf{throughput}, ovvero al volume di operazioni elaborate simultaneamente. Poiché contiene un numero elevato di processori paralleli, non può dotarli di cache L1 grandi come quelle delle CPU. Di conseguenza, gli accessi alla memoria sono più lenti, causando maggiori latenze. Tuttavia, quando la GPU esegue molti più thread rispetto ai suoi core fisici (situazione chiamata “\textit{over-subscription}”), riesce a nascondere queste latenze passando rapidamente l'esecuzione da un thread all'altro.
+
+
+\begin{figure}[h]
+    \includegraphics[width=1\linewidth]{CPUvsGPU.png}
+    \caption{Differenza di architettura \cite{CUDAtutorial}}
+\end{figure}
+
+I \textbf{thread} della GPU sono molto più leggeri rispetto a quelli della CPU, il che rende più efficiente il loro passaggio da uno all'altro. Anche se le latenze possono essere più elevate, la capacità di commutare rapidamente i thread e di gestire più istruzioni in parallelo permette alla GPU di mantenere un \textbf{throughput elevato} durante l'elaborazione. Pertanto, i vantaggi di utilizzare le GPU per calcoli intensivi aumentano all'aumentare del numero di thread impiegati per un determinato compito.
+
+\section{Il modello di esecuzione di CUDA}
+
+Nel modello di esecuzione di CUDA esistono due tipi di funzioni principali:
+
+\begin{itemize}
+    \item \texttt{\_\_global\_\_}: Queste funzioni sono chiamate \textit{kernel functions} e possono essere invocate dalla \textit{host} (CPU) per essere eseguite sulla \textit{device} (GPU). Sono definite con il qualificatore \texttt{\_\_global\_\_} e devono essere invocate con una sintassi speciale, specificando il numero di thread e blocchi da lanciare. Una caratteristica particolare delle funzioni \texttt{\_\_global\_\_} è che il loro tipo di ritorno deve essere sempre \texttt{void}. Ecco un esempio di dichiarazione di una funzione \texttt{\_\_global\_\_}:
+
+    \begin{lstlisting}
+    __global__ void myKernel(int *data) {
+        // Codice da eseguire sulla GPU
+    }
+    \end{lstlisting}
+
+    \item \texttt{\_\_device\_\_}: Queste funzioni possono essere chiamate solo da altre funzioni eseguite sulla \textit{device} (ovvero dalla GPU stessa) e non possono essere invocate direttamente dalla \textit{host}. Le funzioni \texttt{\_\_device\_\_} sono eseguite sulla GPU e possono avere qualsiasi tipo di ritorno. Ecco un esempio di dichiarazione di una funzione \texttt{\_\_device\_\_}:
+
+    \begin{lstlisting}
+    __device__ int square(int x) {
+        return x * x;
+    }
+    \end{lstlisting}
+\end{itemize}
 
 \chapter{Panoramica della localizzazione e mappatura simultanea }
 
@@ -890,10 +940,12 @@ Tuttavia, come emerso dai test relativi ai sistemi lineari e alle operazioni FFT
 
 Un altro aspetto emerso riguarda la possibilità di personalizzazione del firmware. La configurabilità del firmware ULAB consente di adattarlo alle esigenze specifiche del dispositivo, offrendo flessibilità, ma richiede una comprensione approfondita delle opzioni di configurazione e delle esigenze del progetto. Come mostrato dai test, le variazioni nei parametri di compilazione possono influenzare significativamente sia le prestazioni sia le dimensioni del firmware, permettendo di bilanciare efficienza e capacità computazionale.
 
-In conclusione, MicroPython offre un'ottima alternativa per coloro che necessitano di soluzioni Python-like in ambienti embedded con risorse limitate. Nonostante le limitazioni rispetto a Python standard, MicroPython, in combinazione con strumenti come ULAB, fornisce una base solida per lo sviluppo di applicazioni scientifiche e tecniche su microcontrollori. È però essenziale valutare attentamente le esigenze del progetto, considerando i compromessi in termini di precisione e prestazioni, al fine di scegliere la piattaforma più adatta
+In conclusione, MicroPython offre un'ottima alternativa per coloro che necessitano di soluzioni Python-like in ambienti embedded con risorse limitate. Nonostante le limitazioni rispetto a Python standard, MicroPython, in combinazione con strumenti come ULAB, fornisce una base solida per lo sviluppo di applicazioni scientifiche e tecniche su microcontrollori. È però essenziale valutare attentamente le esigenze del progetto, considerando i compromessi in termini di precisione e prestazioni, al fine di scegliere la piattaforma più adatta. Questo secondo \cite{CUDAtutorial}
 
 
-\printbibliography
+\bibliographystyle{apalike}
+\bibliography{bibliografia}  % type -> @online,@misc,@unpublished,@thesis,@article,@book,...
+
 
 \end{document}
 
