@@ -96,7 +96,7 @@ Nella trattazione verrà esaminato l'approccio usato per ottimizare l'algoritmo 
 
 
 
-\chapter{Panoramica dei linguaggi paralleli}
+\chapter{Panoramica dei linguaggi paralleli e specifiche di CUDA}
 
 \section{Introduzione}
 
@@ -139,6 +139,75 @@ Nel modello di esecuzione di CUDA esistono due tipi di funzioni principali:
     }
     \end{lstlisting}
 \end{itemize}
+
+\begin{figure}[h]
+    \includegraphics[width=1\linewidth]{basic_kernel.png}
+    \caption{Kernel di base (1 blocco, 12 thread) \cite{CUDAtutorial}}
+\end{figure}
+
+\section{Sincronizzazione}
+
+Di base, CUDA presume che, se una funzione può dipendere da un'altra, tale dipendenza sarà garantita. Pertanto, CUDA gestisce la sincronizzazione tra le diverse funzioni per assicurare che vengano eseguite nell'ordine corretto.
+Ecco alcuni esempi:
+
+\begin{itemize}
+    \item Il kernel B è successivo al kernel A. Allora il kernel B aspetterà che il primo kernel abbia finito l'esecuzione.
+    \item Se stiamo scrivendo i dati sulla GPU il compilatore aspetterà a lanciare la funzione di tipo \texttt{\_\_kernel\_\_}.
+    \item Se vogliamo scrivere i dati dalla GPU \(\rightarrow\) CPU il compilatore aspetterà che la funzione di tipo \texttt{\_\_kernel\_\_} sia terminata.
+\end{itemize}
+
+\vspace{8mm}
+\hrule
+\vspace{3mm}
+
+È possibile ovviamente sincronizzare manualmente l'esecuzione in un programma CUDA, in modo tale da controllare l'ordine di esecuzione tra kernel, thread o tra operazioni tra CPU e GPU.  I principali metodi di sincronizzazione sono i seguenti:
+
+\begin{itemize}
+    \item \textbf{Sincronizzazione tra Host e Device:}
+    \begin{itemize}
+        \item \texttt{cudaDeviceSynchronize()}: Questa funzione viene chiamata dalla CPU per aspettare che tutte le operazioni precedenti lanciate sulla GPU siano completate. Viene utilizzata per assicurarsi che il kernel abbia terminato l'esecuzione prima di continuare con altre operazioni sul codice host.
+    \end{itemize}
+    
+    \item \textbf{Sincronizzazione tra Thread di un Kernel:}
+    \begin{itemize}
+        \item \texttt{\_\_syncthreads()}: Questa funzione viene chiamata all'interno di un kernel e sincronizza tutti i thread all'interno di un blocco. Ogni thread deve raggiungere il punto in cui è presente \texttt{\_\_syncthreads()} prima di poter proseguire, ed è utile quando c'è bisogno che tutti i thread completino un’operazione comune prima di procedere ulteriormente. Va notato che \texttt{\_\_syncthreads()} funziona solo all'interno di un singolo blocco di thread, non tra diversi blocchi.
+    \end{itemize}
+    
+    \item \textbf{Stream e Eventi per Sincronizzazione Personalizzata:}
+    \begin{itemize}
+        \item CUDA supporta l'uso di stream e eventi per una sincronizzazione più avanzata. Gli stream permettono di lanciare kernel in modo asincrono e indipendente tra loro, mentre gli eventi vengono utilizzati per sincronizzare l'esecuzione tra diversi stream o per misurare il tempo di esecuzione tra operazioni.
+    \end{itemize}
+\end{itemize}
+
+\section{Gerarchia di esecuzione di CUDA}
+
+
+
+\subsection*{Thread}
+Il \textit{thread} è l'unità di base di esecuzione in CUDA. Ogni thread esegue un'istanza del codice definito in un \textit{kernel}. I thread possono essere identificati tramite un identificatore univoco (\texttt{threadIdx}) che li distingue dagli altri all'interno del loro \textit{block}.
+
+\subsection*{Block}
+I thread sono organizzati in \textit{block}, che rappresentano un gruppo di thread che può essere eseguito insieme sulla GPU. Ogni block è indipendente dagli altri, e ogni thread all'interno di un block è identificato da un indice (\texttt{threadIdx}). La dimensione massima di un block dipende dall'architettura della GPU, ma tipicamente contiene fino a 1024 thread. L'indice del block all'interno della griglia è fornito da \texttt{blockIdx}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{hierarchy.png}
+    \caption{Illustrazione della gerarchia di esecuzione di CUDA \cite{CUDAhierarchy}}
+\end{figure}
+
+\subsection*{Grid}
+I block sono organizzati in una \textit{grid}. Una grid è una collezione di block, e la dimensione della grid è determinata al momento del lancio del kernel. L'indice del block nella grid è indicato da \texttt{blockIdx}, che permette ai block di essere distinti e indirizzati individualmente.
+
+
+
+\subsection*{Warp}
+Un concetto fondamentale nella gerarchia di esecuzione di CUDA è il \textit{warp}. Un warp è un insieme di 32 thread che vengono eseguiti in parallelo all'interno di un singolo block. La GPU esegue i thread in gruppi di warp, e tutti i thread di un warp seguono lo stesso percorso di esecuzione (flusso di controllo), il che significa che i thread all'interno di un warp sono soggetti a esecuzione sincrona. Se i thread di un warp prendono percorsi diversi (ad esempio in caso di branch divergenti), la GPU eseguirà i percorsi separatamente, riducendo l'efficienza.
+
+
+
+
+
+
 
 \chapter{Panoramica della localizzazione e mappatura simultanea }
 
