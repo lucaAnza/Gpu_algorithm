@@ -181,13 +181,7 @@ Ecco alcuni esempi:
 
 \section{Gerarchia di esecuzione di CUDA}
 
-
-
-\subsection*{Thread}
-Il \textit{thread} è l'unità di base di esecuzione in CUDA. Ogni thread esegue un'istanza del codice definito in un \textit{kernel}. I thread possono essere identificati tramite un identificatore univoco (\texttt{threadIdx}) che li distingue dagli altri all'interno del loro \textit{block}.
-
-\subsection*{Block}
-I thread sono organizzati in \textit{block}, che rappresentano un gruppo di thread che può essere eseguito insieme sulla GPU. Ogni block è indipendente dagli altri, e ogni thread all'interno di un block è identificato da un indice (\texttt{threadIdx}). La dimensione massima di un block dipende dall'architettura della GPU, ma tipicamente contiene fino a 1024 thread. L'indice del block all'interno della griglia è fornito da \texttt{blockIdx}.
+La gerarchia di esecuzione in CUDA si basa su un'architettura parallela organizzata in livelli, che consente di suddividere il lavoro complessivo in unità più piccole. Il codice viene eseguito in parallelo su molte unità di calcolo, con la possibilità di gestire grandi quantità di operazioni simultaneamente. Questa struttura permette di scalare l'esecuzione in base alle esigenze, ottimizzando l'uso delle risorse disponibili per migliorare le prestazioni complessive.
 
 \begin{figure}[h]
     \centering
@@ -195,13 +189,71 @@ I thread sono organizzati in \textit{block}, che rappresentano un gruppo di thre
     \caption{Illustrazione della gerarchia di esecuzione di CUDA \cite{CUDAhierarchy}}
 \end{figure}
 
+\subsection*{Thread}
+Il \textit{thread} è l'unità di base di esecuzione in CUDA. Ogni thread esegue un'istanza del codice definito in un \textit{kernel}. I thread possono essere identificati tramite un identificatore univoco (\texttt{threadIdx}) che li distingue dagli altri all'interno del loro \textit{block}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{cuda_thread.png}
+    \caption{Thread nel modello di CUDA \cite{CUDA_blog}}
+\end{figure}
+
+\subsection*{Block}
+I thread sono organizzati in \textit{block}, che rappresentano un gruppo di thread che può essere eseguito insieme sulla GPU. Ogni block è indipendente dagli altri, e ogni thread all'interno di un block è identificato da un indice (\texttt{threadIdx}). La dimensione massima di un block dipende dall'architettura della GPU, ma tipicamente contiene fino a 1024 thread. L'indice del block all'interno della griglia è fornito da \texttt{blockIdx}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{cuda_block.png}
+    \caption{Blocco(block) nel modello di CUDA \cite{CUDA_blog}}
+\end{figure}
+
+
+
 \subsection*{Grid}
 I block sono organizzati in una \textit{grid}. Una grid è una collezione di block, e la dimensione della grid è determinata al momento del lancio del kernel. L'indice del block nella grid è indicato da \texttt{blockIdx}, che permette ai block di essere distinti e indirizzati individualmente.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{cuda_grid.png}
+    \caption{Griglia(grid) nel modello di CUDA \cite{CUDA_blog}}
+\end{figure}
 
 
 
 \subsection*{Warp}
-Un concetto fondamentale nella gerarchia di esecuzione di CUDA è il \textit{warp}. Un warp è un insieme di 32 thread che vengono eseguiti in parallelo all'interno di un singolo block. La GPU esegue i thread in gruppi di warp, e tutti i thread di un warp seguono lo stesso percorso di esecuzione (flusso di controllo), il che significa che i thread all'interno di un warp sono soggetti a esecuzione sincrona. Se i thread di un warp prendono percorsi diversi (ad esempio in caso di branch divergenti), la GPU eseguirà i percorsi separatamente, riducendo l'efficienza.
+Un concetto fondamentale nella gerarchia di esecuzione di CUDA è il \textit{warp}. Un warp è un insieme di \textbf{32 thread} che vengono eseguiti in parallelo all'interno di un singolo block. La GPU esegue i thread in gruppi di warp, e tutti i thread di un warp seguono lo stesso percorso di esecuzione (flusso di controllo), il che significa che i thread all'interno di un warp sono soggetti a esecuzione sincrona. Se i thread di un warp prendono percorsi diversi (ad esempio in caso di branch divergenti), la GPU eseguirà i percorsi separatamente, riducendo l'efficienza.
+
+
+
+\section{Tipi di memoria}
+
+Nell'architettura CUDA, esistono diversi tipi di memoria, ognuno con caratteristiche specifiche in termini di accesso, latenza e visibilità.
+
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{type_of_memory.png}
+    \caption{Tipi di memoria \cite{CUDAtutorial}}
+\end{figure}
+
+
+\subsection{Memoria condivisa (Shared Memory)}
+La \textit{memoria condivisa} è una memoria veloce e a bassa latenza, accessibile da tutti i thread all'interno dello stesso blocco. È utile per condividere dati tra thread e ridurre l'accesso alla memoria globale, ottimizzando le prestazioni dei programmi paralleli. La memoria condivisa è limitata in quantità e deve essere gestita con attenzione.
+
+\subsection{Memoria globale (Global Memory)}
+La \textit{memoria globale} è la memoria principale accessibile da tutti i thread e blocchi. Essa ha una latenza elevata, quindi è preferibile minimizzarne l'utilizzo, soprattutto se si può sfruttare la memoria condivisa. Tuttavia, la memoria globale ha una capacità molto maggiore rispetto alla memoria condivisa.
+
+\subsection{Memoria locale (Local Memory)}
+La \textit{memoria locale} è assegnata ai singoli thread e viene utilizzata per memorizzare variabili private. Nonostante il nome, questa memoria è fisicamente una parte della memoria globale, e pertanto ha tempi di accesso relativamente lenti.
+
+\subsection{Memoria costante (Constant Memory)}
+La \textit{memoria costante} è una memoria a sola lettura che viene utilizzata per valori che rimangono invariati durante l'esecuzione di un kernel. Essendo memorizzata nella cache, ha una latenza più bassa rispetto alla memoria globale quando viene letta simultaneamente da più thread.
+
+\subsection{Memoria di texture (Texture Memory)}
+La \textit{memoria di texture} è progettata per il recupero efficiente di dati strutturati e può essere utilizzata per migliorare le prestazioni in applicazioni che richiedono accessi irregolari ai dati. Viene spesso usata in ambiti grafici, ma è accessibile anche per scopi generali.
+
+\subsection{Registri}
+I \textit{registri} sono la forma di memoria più veloce in CUDA e sono utilizzati per memorizzare variabili temporanee all'interno dei thread. Ogni thread ha accesso ai propri registri, che sono molto limitati in numero. Un uso inefficiente dei registri può portare al cosiddetto \textit{spill} nella memoria locale, con conseguente rallentamento delle prestazioni.
 
 
 
