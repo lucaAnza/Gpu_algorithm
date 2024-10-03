@@ -25,7 +25,7 @@
 \usepackage{microtype}
 \usepackage{mathrsfs}
 \usepackage{setspace}
-\usepackage{graphicx}
+\usepackage{graphicx}  % Serve per le immagini
 \usepackage{float}
 \usepackage{subfigure}
 \usepackage{subcaption}
@@ -416,14 +416,15 @@ Nell'illustrazione sottostante è possibile visionare la schematizzazione della 
     \caption{Schematizzazione ad alto livello }
 \end{figure}
 
-\vspace{8mm}
+Ci sono due tipi di rappresentazioni. Quella ad alta livello è astratta e non tiene conto delle strutture dati. Mentre la seconda si concentra sulle strutture dati utilizzate e le iterazioni eseguite per raggiungere il risultato atteso.
 
-\begin{figure}[h]
+
+
+\begin{figure}[H]
     \centering
-    \includegraphics[width=1\linewidth]{img/find_best_distance.png}
-    \caption{Schematizzazione a basso livello }
+    \fbox{\includegraphics[width=1\textwidth]{img/find_best_distance.png}}
+    \caption{Schematizzazione a basso livello}
 \end{figure}
-
 
 
 
