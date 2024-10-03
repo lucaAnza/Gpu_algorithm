@@ -266,79 +266,6 @@ I \textit{registri} sono la forma di memoria più veloce in CUDA e sono utilizza
 \section{Python}
 
 È un linguaggio di programmazione ad alto livello, interpretato e
-orientato agli oggetti, che si è rapidamente affermato come uno degli
-strumenti più versatili e popolari per lo sviluppo software, grazie alla
-sintassi semplice e leggibile, che lo rende accessibile sia ai
-programmatori principianti che agli esperti.\\
-Creato da Guido van Rossum e rilasciato per la prima volta nel 1991,
-Grazie alla sua vasta libreria standard e alla forte comunità di
-supporto, Python è utilizzato in una vasta gamma di applicazioni, che
-spaziano dl web development all'automazione di script, dalla data science all'intelligenza artificiale."
-
-\section{MicroPython}
-
-MicroPython d'altra parte, è una reimplementazione di
-Python pensata specificamente per i microcontrollori e i dispositivi a
-risorse limitate. MicroPython conserva la semplicità e la leggibilità di
-Python, ma è ottimizzato per funzionare in ambienti dove memoria,
-potenza di calcolo e risorse sono estremamente limitate. MicroPython
-permette di scrivere codice Python standard, ma è dotato anche di moduli
-e funzionalità specifiche per interagire direttamente con
-l'hardware, come GPIO, PWM, I2C e SPI, che sono
-comunemente utilizzati nei progetti di elettronica embedded.
-
-La comparazione tra MicroPython e Python classico si focalizza
-principalmente sulle prestazioni, sul consumo di risorse e sulle
-applicazioni d'uso. Mentre Python viene eseguito su
-computer con capacità hardware relativamente elevate, MicroPython è
-progettato per essere eseguito su microcontrollori con pochi kilobyte di
-memoria, come il chip ESP8266 o l'ESP32, che lo rende
-ideale per applicazioni in Internet of Things (IoT) e automazione.
-Pertanto, la differenza principale risiede
-nell'ottimizzazione: MicroPython sacrifica alcune
-funzionalità avanzate e performance rispetto a Python standard per
-adattarsi alle limitazioni dell'hardware embedded.
-
-In questa tesi, verranno analizzate le differenze di performance tra
-MicroPython e Python in vari contesti, esplorando in che modo ciascuna
-implementazione può essere più vantaggiosa a seconda delle esigenze
-specifiche del progetto. Verranno esaminati casi di studio pratici per
-illustrare l'uso di MicroPython in ambienti embedded e
-saranno presentati test comparativi per valutare
-l'efficienza delle due implementazioni in scenari
-tipici.
-
-\section{Differenze tra Python e MicroPython}
-
-Python e MicroPython, sebbene condividano gran parte della sintassi e dei concetti fondamentali, presentano differenze significative a causa delle diverse finalità di utilizzo. MicroPython è stato progettato per microcontrollori e dispositivi con risorse limitate, mentre Python viene solitamente eseguito su computer o server con molta più potenza di calcolo e memoria.
-
-\subsection{Dimensioni dell'interprete e Ottimizzazione per dispositivi embedded}
-
-La caratteristica distintiva di MicroPython è la sua leggerezza. L'interprete di MicroPython è molto più piccolo di quello di Python, tipicamente occupando meno di 512 KB di memoria flash, a seconda della configurazione e delle librerie incluse. Python, al contrario, richiede molto più spazio a causa della sua vasta libreria standard e delle sue funzionalità avanzate.
-
-MicroPython è progettato per essere eseguito in ambienti embedded, come microcontrollori e dispositivi a risorse limitate, dove memoria RAM e flash sono estremamente ridotte. Per fare questo, MicroPython esclude alcune caratteristiche di Python standard e include una gestione ottimizzata della memoria, con un garbage collector progettato per lavorare con quantità di RAM molto limitate.
-
-\subsection{Libreria Standard}
-
-Python è noto per la sua vasta libreria standard che copre una gamma estremamente ampia di funzionalità, dal networking all'elaborazione del testo, fino all'interfacciamento con database. MicroPython, invece, include solo un sottoinsieme della libreria standard di Python, limitato a ciò che è strettamente necessario per lavorare in ambienti embedded.
-
-Le librerie disponibili in MicroPython sono adattate per essere utilizzate su microcontrollori e comprendono moduli specializzati per l'interazione diretta con l'hardware. Alcuni di questi moduli includono il supporto per GPIO, I2C, SPI e UART, funzioni essenziali per il controllo di dispositivi e sensori esterni, che non fanno parte del Python standard.
-
-Successivamente si analizzeranno più in dettaglio le librerie disponibili nell'ambiente Micropython e eventuali alternative a popolari librerie Python.
-
-\subsection{Gestione delle eccezioni e Debugging}
-
-Python offre meccanismi avanzati per la gestione delle eccezioni e strumenti di debugging come pdb, che permettono di tracciare gli errori e risolvere i problemi nel codice in modo dettagliato. In MicroPython, la gestione delle eccezioni è semplificata per risparmiare risorse, e alcune delle funzionalità avanzate di debugging non sono disponibili, come ad esempio il supporto completo per il traceback approfondito.
-
-Inoltre, per ridurre l'overhead, MicroPython può escludere le informazioni di debugging come i nomi dei file e i numeri di linea nel traceback, rendendo il debugging meno dettagliato rispetto a Python. Tuttavia, MicroPython fornisce strumenti di base per individuare errori, come i messaggi di errore semplificati e la stampa dello stato del programma.
-
-\subsection{Gestione della memoria e Garbage Collector}
-
-MicroPython utilizza un garbage collector più semplice rispetto a Python, ottimizzato per funzionare in dispositivi con memoria limitata. L'allocazione dinamica della memoria viene gestita in modo molto più conservativo rispetto a Python standard, e il garbage collector viene eseguito in modo esplicito o automatico quando necessario per liberare la memoria occupata da oggetti non più utilizzati.
-
-\subsection{Reattività e Tempo Reale}
-
-Un altro aspetto chiave di MicroPython è la sua capacità di operare in tempo reale su microcontrollori. Poiché MicroPython è eseguito direttamente sull'hardware senza un sistema operativo completo, è possibile scrivere codice che risponde in modo rapido e deterministico agli eventi hardware, come la gestione di interrupt o il controllo di motori e sensori. Python, essendo generalmente eseguito su sistemi operativi, non è ottimizzato per operare in ambienti real-time e dipende dal kernel del sistema operativo per la gestione delle operazioni hardware.
 
 \chapter{Esperimenti e scopo della ricerca}
 
@@ -412,7 +339,7 @@ Per installarlo è sufficiente loggarsi sul sito \url{https://www.cvlibs.net/dat
 
 \subsection{Installazione definitiva di ORB-SLAM3}
 
-Per completare l'installazione di ORB-SLAM3 e prepararlo per l'esecuzione, seguire i passaggi descritti di seguito.
+Per avvicinarci all'installazione finale di ORB-SLAM3 parallelo prima scarichiamo la versione non ottimizata, a seguire i passaggi descritti di seguito.
 
 \begin{enumerate}
     \item \textbf{Clonare il repository:} Per prima cosa, clonare il repository di ORB-SLAM3 dal seguente URL: \url{https://github.com/UZ-SLAMLab/ORB_SLAM3}. Utilizzare il seguente comando nel terminale:
@@ -447,87 +374,59 @@ Per completare l'installazione di ORB-SLAM3 e prepararlo per l'esecuzione, segui
     \end{itemize}
 \end{enumerate}
 
+\newline
 
-\section{Librerie alternative}
+Una volta che si è riusciti ad avviare la versione sopra citata, è possibile a passare alla versione parallela.
+Infatti la versione attualmente in esecuzione, non è quella citata all'inizio del capitolo, questo perchè non contiene la parte di \textit{Estrazione ORB} parallelizata.
+Per fare in modo di eseguire la versione in parallelo è necessario seguire i medesimi step con il seguente repository: \url{https://git.hipert.unimore.it/fmuzzini/cuda-accelerated-orb-slam}
 
-Come anticipato, risulta che non ci sia un modo diretto di utilizzare
-le librerie dell'ecosistema di Python su Micropython, ma
-devono solitamente essere \textbf{appositamente sviluppate} o è
-necessario fare un porting.\\
-I problemi principali dell'incompatibilità sono due:
+\section{Analisi delle possibili ottimizazioni}
+
+Durante l'analisi del codice di ORB-SLAM3, è stata individuata la funzione 
+\begin{lstlisting}
+void Frame::ComputeStereoMatches()}
+\end{lstlisting} 
+che si occupa dell'esecuzione della parte di \textbf{Stereo Matching}. 
+Successivamente è stata eseguita una schematizzazione ed è stata analizzatata la sua struttura per identificare le possibili aree su cui intervenire per effettuare le ottimizzazioni.
+
+\subsection{Schema generale}
+
+Lo schema generale del funzionamento della funzione \texttt{ComputeStereoMatches()} è illustrato nell'immagine sottostante. Tale schema si compone di tre macro-funzioni principali e mostra il numero medio di iterazioni eseguite, permettendo di vedere il carico computazionale svolto.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{img/ComputeStereo_schema.png}
+    \caption{Schematizzazione della funzione \textit{ComputeStereoMatches()} }
+\end{figure}
 
 \begin{enumerate}
-\item
-  le C extension
-
-  \begin{itemize}
-    \item
-    la maggior parte delle librerie popolari di Python utilizzano
-    estensioni di C per le performance, visto il cambio di piattaforma,
-    queste non sono spesso portabili sui microcontrollori
-  \end{itemize}
-\item
-  feature di Python\\
-  - nonostante MicroPython (specialmente grazie
-  all'index micropython-lib) offra la maggior parte
-  delle feature di Python, la compatibilità non è completa\\
-  Si decide quindi di analizzare l'ecosistema di
-  MicroPython, per analizzare la situazione
+    \item \textbf{Raccolta dei keypoints:} La prima funzione si occupa di selezionare, per ogni punto chiave(keypoint) dell'immagine destra, un intorno e di aggiungerlo a una struttura dati apposita, preparandolo per le fasi successive.
+    \item \textbf{Selezione del miglior candidato:} La seconda funzione si concentra sulla ricerca del miglior candidato tra quelli selezionati nella fase precedente, valutando i vari intorni e scegliendo quello più adatto.
+    \item \textbf{Filtraggio dei risultati:} La terza funzione applica filtri ai keypoints migliori, al fine di mantenere solo quelli che soddisfano determinati criteri di qualità, migliorando così la precisione complessiva del processo.
 \end{enumerate}
 
-\subsection{Machine learning}\label{machine-learning}
 
-Le librerie più comuni per il machine learning (numpy, scipy,
-sickit-lean) non sono utilizzabili con MicroPython, ma sono disponibili
-alternative:
+\subsection{Schema della ricerca dei migliori candidati}
 
-\begin{itemize}
-\item
-  {ULAB}\cite{ulab}:
-  offre un subset limitato di numpy e scipy
+Nell'illustrazione sottostante è possibile visionare la schematizzazione della funzione addetta a trovare i migliori punti chiave tra quelli candidati (cioè quelli con distanza minore dall'immagine a sinistra)
 
-  \begin{itemize}
-    \item
-    l'obiettivo del progetto è
-    l'implementazione di funzioni di queste librerie
-    mentendo un'utilizzo della RAM limitato ma
-    mantenendo alte performance
-  \item
-    il progetto non punta non punta a coprire tutte le funzionalità di
-    numpy e scipy, ma solo di implementare quelle che ha senso
-    utilizzare in un contesto embedded
-  \end{itemize}
-\item
-  Emlearn \cite{emlearn}: permette di fare
-  il training in Python con librerie Scikit-learn or Keras e genera un
-  header C99 senza particolari dipendenze, utilizzabile su
-  microcontroller
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/find_distance_high_scheme.png}
+    \caption{Schematizzazione ad alto livello }
+\end{figure}
 
-  \begin{itemize}
-    \item
-    questa libreria non è quindi una libreria di MicroPython, ma
-    permette
-  \end{itemize}
-\item
-  Tensorflow\cite{openmv_tensor}: esiste
-  una libreria tensorflow che supporta solo le schede OpenMV Cam
-\end{itemize}
+\vspace{8mm}
 
-\subsection{Web}\label{web}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{img/find_best_distance.png}
+    \caption{Schematizzazione a basso livello }
+\end{figure}
 
-Le librerie più frequentemente utilizzate per lo scraping (BeatifulSoup)
-o per la creazione di web server (Django, Flask) non sono presenti.\\
-È però presente la famosa libreria requests per fare semplici
-interrogazioni HTTP. E la libreria socket permette la creazione di un
-HTTP server.\\
-È anche disponibili la libreria html che fornisce funzioni utili per la
-gestione e manipolazione di HTML.
 
-\subsection{Calcolo scientifico}\label{calcolo-scientifico}
 
-Per il calcolo scientifico è disponibile la libreria standard math ed è
-possibile utilizzare la libreria ULAB \cite{ulab}
-sopracitata che offre parte delle funzionalità di numpy e scipy
+
 
 \chapter{ULAB}\label{ulab}
 
