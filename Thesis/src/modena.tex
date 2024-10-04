@@ -4,7 +4,7 @@
 \usepackage{parskip}        % fa in modo che ogni paragrafo sia spaziato e non abbia l'indentazione
 \usepackage{hyperref}       % Per gestire i collegamenti ipertestuali
 \usepackage{listings} % Pacchetto per il codice
-\usepackage{xcolor} % Opzionale, per colorare il codice
+\usepackage{xcolor} % Opzionale, per colorare il codice e le tabelle
 \lstset{
   language=C++,             % Linguaggio
   basicstyle=\ttfamily,      % Stile del testo
@@ -29,6 +29,10 @@
 \usepackage{float}
 \usepackage{subfigure}
 \usepackage{subcaption}
+
+\usepackage{colortbl}  % Permette di colorare degli elementi
+\usepackage{booktabs}  % Migliora l'aspetto delle tabelle
+\usepackage{multirow}  % Serve per unire più righe in una tabella
 
 \graphicspath{ {./images/} }
 \newcommand{\sign}{\text{sign}}
@@ -498,6 +502,7 @@ Questa procedura ci permetterà di valutare in modo consistente e riproducibile 
 
 Nei paragrafi seguenti, presenteremo i risultati ottenuti da questi esperimenti e discuteremo le implicazioni per il nostro lavoro di ottimizzazione.
 
+\newpage
 \section{Esperimento 1 - Variazione raggio dei candidati}
 
 In questa fase del nostro studio, procederemo a modificare il parametro \textbf{radiusMultiplier}  della funzione che raccoglie i \textbf{candidati}. L'obiettivo è analizzare l'impatto di queste variazioni sulle prestazioni complessive del sistema. Nello specifico, valuteremo i potenziali vantaggi e svantaggi derivanti da ciascuna modifica, con particolare attenzione alle \textbf{implicazioni temporali}.
@@ -516,11 +521,9 @@ for(int iR=0; iR<Nr; iR++){
     
     // Variabile modifica per esperimento
     const float radiusMultiplier = 2.0 
-    
     const float r = radiusMultiplier *mvScaleFactors[mvKeysRight[iR].octave];  
     const int maxr = ceil(kpY+r);
     const int minr = floor(kpY-r);
-    
     // Inserimento candidati nell'intorno del raggio
     for(int yi=minr;yi<=maxr;yi++){
         vRowIndices[yi].push_back(iR);
@@ -529,8 +532,115 @@ for(int iR=0; iR<Nr; iR++){
 }
 \end{lstlisting}
 
-\subsection{risultati dell'esperimento}
+\vspace{4cm}
 
+\subsection{Analisi dell'Impatto del parametro Radius: Risultati e Limiti}
+
+L'esperimento condotto per valutare l'influenza del parametro 'radius' sulle prestazioni del sistema ORB-SLAM 3 ha portato a risultati che, purtroppo, non possiamo considerare particolarmente positivi, soprattutto in termini di \textit{miglioramento della precisione}.
+
+Contrariamente alle nostre aspettative iniziali, le variazioni del valore del raggio, sia in aumento che in diminuzione, non hanno prodotto i miglioramenti sperati né in termini di  \textbf{ efficienza computazionale} né, cosa più rilevante, in termini di \textbf{accuratezza} dei risultati.
+
+Si nota inoltre che i tempi nella parte di \textbf{Stereo Matching} hanno un aumento significativo fino a raggiungere un incremento del 100\%.
+
+
+
+\begin{table}[h]
+    \centering
+    \caption{Esperimenti variazione raggio (KITTY DATASET - 04) }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
+        \midrule
+        %%%
+        Translation error & 0.47 & \cellcolor{green!20}0.46 & \cellcolor{green!20}0.46 & 0.47 & 0.47 \\
+        %%%
+        Rotational error  & \cellcolor{green!20}0.07 & 0.08 & 0.09 & \cellcolor{green!20}0.07 & \cellcolor{green!20}0.07 \\
+        %%%
+        ATE (m)           & 0.73 & 0.77 & 0.75 & 0.78 & \cellcolor{green!20}0.71 \\
+        %%%
+        RPE (m)           & \cellcolor{green!20}0.017 & \cellcolor{green!20}0.017 & \cellcolor{green!20}0.017 & \cellcolor{green!20}0.017 & \cellcolor{green!20}0.017 \\
+        %%%
+        RPE (deg)         & 0.031 & 0.032 & 0.031 & \cellcolor{green!20}0.030 & \cellcolor{green!20}0.030 \\
+        %%%
+        ORB Extraction (ms) & 9.1419 & \cellcolor{green!20}8.9207 & \cellcolor{green!20}8.9707 & 9.0029 & 8.9305 \\
+        %%%
+        Stereo Matching (ms) & \cellcolor{green!20}3.0216 & 3.391 & 3.962 & 4.8351 & 6.345 \\
+        %%%
+        ORB Extraction ($\sigma$) & 61.54 & \cellcolor{green!20}57.737 & 58.214 & 58.98 & 58.148 \\
+        %%%
+        Stereo Matching ($\sigma$) & \cellcolor{green!20}0.54303 & 0.63088 & 0.68821 & 0.74869 & 0.6854 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+
+\begin{table}[h]
+    \centering
+    \caption{Esperimenti variazione raggio (KITTY DATASET - 06) }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
+        \midrule
+        %%%
+        Translation error & 0.48 & 0.48 & \cellcolor{green!20}0.46 & 0.48 & 0.48 \\
+        %%%
+        Rotational error & \cellcolor{green!20}0.15 & 0.16 & \cellcolor{green!20}0.15 & 0.16 & \cellcolor{green!20}0.15 \\
+        %%%
+        ATE (m)           & 2.43 & 2.45 & \cellcolor{green!20}2.29 & 2.59 & 2.31 \\
+        %%%
+        RPE (m)           & \cellcolor{green!20}0.013 & \cellcolor{green!20}0.013 & 0.014 & 0.014 & 0.014 \\
+        %%%
+        RPE (deg)         & \cellcolor{green!20}0.031 & \cellcolor{green!20}0.031 & 0.032 & 0.032 & 0.032 \\
+        %%%
+        ORB Extraction (ms) & 6.0595 & 6.0632 & \cellcolor{green!20}6.0573 & 6.0988 & 6.1996 \\
+        %%%
+        Stereo Matching (ms) & 2.832 & 3.231 & 3.732 & 4.678 & 6.281 \\
+        %%%
+        ORB Extraction ($\sigma$) & 28.606 & \cellcolor{green!20}28.451 & 28.551 & 28.839 & 28.839 \\
+        %%%
+        Stereo Matching ($\sigma$) & \cellcolor{green!20}0.534 & 0.557 & 0.645 & 0.716 & 0.681 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\newpage
+\begin{table}[h]
+    \centering
+    \caption{Esperimenti variazione raggio (KITTY DATASET - 07) }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
+        \midrule
+        %%%
+        Translation error & 0.48 & \cellcolor{green!20}0.44 & 0.47 & 0.46 & 0.47 \\
+        %%%
+        Rotational error  & 0.24 & \cellcolor{green!20}0.23 & 0.25 & 0.26 & 0.26 \\
+        %%%
+        ATE (m)           & 0.52 & 0.49 & 0.5 & 0.54 & \cellcolor{green!20}0.46 \\
+        %%%
+        RPE (m)           & 0.014 & \cellcolor{green!20}0.013 & 0.014 & 0.014 & 0.014 \\
+        %%%
+        RPE (deg)         & 0.04 & \cellcolor{green!20}0.039 & 0.041 & 0.040 & 0.040 \\
+        %%%
+        ORB Extraction (ms) & 6.305 & 6.3717 & 6.356 & \cellcolor{green!20}6.280 & 6.679 \\
+        %%%
+        Stereo Matching (ms) & \cellcolor{green!20}3.087 & 3.573 & 4.072 & 4.896 & 6.679 \\
+        %%%
+        ORB Extraction ($\sigma$) & 29.31 & \cellcolor{green!20}28.58 & 29.45 & 28.65 & 29.87 \\
+        %%%
+        Stereo Matching ($\sigma$) & 0.535 & \cellcolor{green!20}0.526 & 0.642 & 0.689 & 0.688 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Nella sezione successiva proporremo nuove direzioni per la ricerca, inclusa l'esplorazione di altri parametri o modifiche più sostanziali all'algoritmo di base. Inoltre, considereremo l'opportunità di concentrarci maggiormente sull'ottimizzazione attraverso l'implementazione GPU, che potrebbe offrire maggiori opportunità per migliorare sia l'efficienza che la precisione del sistema.
+
+
+\newpage
+\section{Esperimento 2 - Parallelizazione: ricerca delle distanze minime e filtraggio}
 
 \chapter{TO DELETE}
 
@@ -889,5 +999,4 @@ In conclusione, MicroPython offre un'ottima alternativa per coloro che necessita
 
 
 \end{document}
-
 
