@@ -405,10 +405,12 @@ Lo schema generale del funzionamento della funzione \texttt{ComputeStereoMatches
     \item \textbf{Filtraggio dei risultati:} La terza funzione applica filtri ai keypoints migliori, al fine di mantenere solo quelli che soddisfano determinati criteri di qualità, migliorando così la precisione complessiva del processo.
 \end{enumerate}
 
-
+\newpage
 \subsection{Schema della ricerca dei migliori candidati}
 
 Nell'illustrazione sottostante è possibile visionare la schematizzazione della funzione addetta a trovare i migliori punti chiave tra quelli candidati (cioè quelli con distanza minore dall'immagine a sinistra)
+
+Ci sono due tipi di rappresentazioni. Quella ad \textbf{alta livello} che è astratta e non tiene conto delle strutture dati. Mentre la seconda si concentra sulle \textbf{strutture dati utilizzate} e \textbf{le iterazioni} eseguite per raggiungere il risultato atteso.
 
 \begin{figure}[h]
     \centering
@@ -416,7 +418,8 @@ Nell'illustrazione sottostante è possibile visionare la schematizzazione della 
     \caption{Schematizzazione ad alto livello }
 \end{figure}
 
-Ci sono due tipi di rappresentazioni. Quella ad alta livello è astratta e non tiene conto delle strutture dati. Mentre la seconda si concentra sulle strutture dati utilizzate e le iterazioni eseguite per raggiungere il risultato atteso.
+Come si può vedere nell'immagine questa parte dell'algoritmo calcolerà la varie distanze, tra i punti \textbf{candidati trovati} ed i punti effettivi nell'\textbf{immagine sinistra}.
+E successivamente andrà a scartare i candidati non ottimali.
 
 
 
@@ -425,6 +428,29 @@ Ci sono due tipi di rappresentazioni. Quella ad alta livello è astratta e non t
     \fbox{\includegraphics[width=1\textwidth]{img/find_best_distance.png}}
     \caption{Schematizzazione a basso livello}
 \end{figure}
+
+\subsection{Schema del filtraggio finale sui punti chiave}
+
+In questa sezione, analizzeremo il processo di Sliding Window nel contesto del nostro sistema ORB-SLAM 3 nella versiona non ottimizata per CPU. 
+
+\begin{enumerate}
+    \item L'immagine seguente illustra schematicamente la componente \textbf{Sliding Window} del sistema:
+    
+    \item È importante notare che il filtraggio associato alla Sliding Window viene eseguito successivamente al calcolo della distanza minore di un singolo punto chiave. Questo permette, eventualmente, di non attendere il calcolo di tutte le distanze ma di eseguire il filtraggio ad ogni singolo punto chiave.
+\end{enumerate}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth]{img/sliding_window_high.png}
+    \caption{Schematizzazione a basso livello }
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \fbox{\includegraphics[width=1\textwidth]{img/sliding_window.png}}
+    \caption{Schematizzazione a basso livello }
+\end{figure}
+
 
 
 
