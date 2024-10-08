@@ -642,6 +642,111 @@ Nella sezione successiva proporremo nuove direzioni per la ricerca, inclusa l'es
 \newpage
 \section{Esperimento 2 - Parallelizazione: ricerca delle distanze minime e filtraggio}
 
+In questo capitolo, presenteremo il secondo esperimento condotto nell'ambito della nostra ricerca sull'ottimizzazione. L'obiettivo principale di questo esperimento è stato quello di parallelizzare due \textit{fasi critiche del nostro algoritmo}:
+
+\begin{itemize}
+    \item La ricerca delle distanze minime
+    \item Il successivo processo di filtraggio
+\end{itemize}
+
+Attraverso questa parallelizzazione, ci proponiamo di sfruttare appieno le capacità di elaborazione parallela offerte dalle GPU, con l'intento di ottenere un significativo miglioramento delle prestazioni rispetto all'implementazione sequenziale.
+Nel corso di questo capitolo, esamineremo in dettaglio:
+
+\begin{enumerate}
+    \item Gli step eseguiti per implementare la parallelizzazione.
+    \item I risultati ottenuti dall'esperimento.
+    \item Un'analisi comparativa delle prestazioni tra l'implementazione sequenziale e quella parallela.
+\end{enumerate}
+
+Questa esplorazione ci permetterà di valutare l'efficacia dell'approccio adottato e di trarre conclusioni sulle potenzialità dell'ottimizzazione in questo contesto specifico.
+
+\begin{figure}[h]
+    \centering
+    \fbox{\includegraphics[width=0.5\textwidth]{img/experiment2_schema.png}}
+    \caption{Distribuzione delle funzioni su device}
+\end{figure}
+
+\subsection{Avvicinamento alla soluzione}
+
+Nel percorso verso la realizzazione del nostro obiettivo finale, si è ritenuto opportuno sviluppare un programma intermedio. Questo approccio ha permesso di affrontare gradualmente la complessità del problema, fornendo preziosi spunti e una base solida su cui costruire.
+È importante sottolineare che questo programma intermedio, pur condividendo alcune similitudini con il nostro obiettivo finale, presenta delle differenze significative:
+
+\begin{figure}[h]
+    \centering
+    \fbox{\includegraphics[width=1\textwidth]{img/opt1_simulation.png}}
+    \caption{Schemattizazione del programma di "avvicinamento"}
+\end{figure}
+
+\vspace{2cm}
+
+\subsection{Parallelizazione della "ricerca delle distanze minime" }
+
+Per implementare la parallelizzazione della funzione di ricerca delle distanze minime, abbiamo seguito un approccio strutturato che ha richiesto la creazione di nuovi file e la modifica di quelli esistenti. Di seguito, descriviamo i passaggi principali di questo processo:
+
+\subsubsection{Creazione di nuovi file}
+Il primo passo è stato la creazione di due nuovi file:
+
+\begin{itemize}
+    \item \texttt{gpu\_stereoMatches.cu}: Questo file conterrà il codice CUDA per la parallelizzazione della funzione.
+    \item \texttt{gpu\_stereoMatches.h}: Il file header corrispondente, che conterrà le dichiarazioni delle funzioni e le strutture dati necessarie.
+\end{itemize}
+
+In questi file, abbiamo implementato la logica per la parallelizzazione della ricerca delle distanze minime, sfruttando le capacità di elaborazione parallela offerte dalle GPU.
+
+\subsubsection{Aggiornamento del CMakeLists.txt}
+
+Per assicurarci che i nuovi file fossero inclusi correttamente nel processo di compilazione, abbiamo aggiunto le seguenti righe al file \texttt{CMakeLists.txt}:
+
+\begin{verbatim}
+src/gpu_stereoMatches.cu
+include/gpu_stereoMatches.h
+\end{verbatim}
+
+Questa modifica garantisce che il compilatore riconosca e includa i nostri nuovi file CUDA durante il processo di build.
+
+\subsubsection{Inclusione dell'header nel file Frame.cc}
+Per rendere le nuove funzionalità accessibili all'interno del nostro framework esistente, abbiamo aggiunto la seguente linea di inclusione nel file \texttt{Frame.cc}:
+
+\begin{verbatim}
+#include "gpu_stereoMatches.h"
+\end{verbatim}
+
+Questo passaggio assicura che le funzioni e le strutture dati definite nei nostri nuovi file siano disponibili per l'uso all'interno del contesto del frame.
+
+\subsubsection{Progettazione della struttura del kernel}
+Dopo aver preparato l'infrastruttura necessaria, ci siamo concentrati sulla progettazione della struttura del kernel CUDA da lanciare. Questa fase ha comportato:
+
+\begin{itemize}
+\item L'analisi dell'algoritmo di ricerca delle distanze minime per identificare le parti parallelizzabili.
+\item La definizione della griglia e dei blocchi di thread per ottimizzare l'esecuzione sulla GPU.
+\item La progettazione delle funzioni del kernel per sfruttare efficacemente l'architettura parallela della GPU.
+\end{itemize}
+
+La struttura del kernel è stata progettata per massimizzare il parallelismo, permettendo l'elaborazione simultanea di molteplici punti di interesse e riducendo significativamente il tempo di esecuzione complessivo dell'algoritmo di ricerca delle distanze minime.
+
+\vspace{1cm}
+
+\begin{figure}[h]
+    \centering
+    \fbox{\includegraphics[width=0.6\textwidth]{img/GPU_opt1_findDistance.png}}
+    \caption{Analisi dei compiti dei singoli thread (calcolo distanza) }
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \fbox{\includegraphics[width=0.6\textwidth]{img/GPU_opt1_findMinDistance.png}}
+    \caption{Analisi dei compiti dei singoli thread (calcolo distanza minima) }
+\end{figure}
+
+\subsubsection{Confronto precisione risultati}
+
+//INSERIRE IMMAGINE CONFRONTO RISULTATI perc : uguaglianza perc : differenza
+
+\subsection{Parallelizazione del "filtraggio sulle distanze" }
+
+// TO DO
+
+
 \chapter{TO DELETE}
 
 Intanto si definiscono i due firmware di reference per performance e
@@ -999,4 +1104,5 @@ In conclusione, MicroPython offre un'ottima alternativa per coloro che necessita
 
 
 \end{document}
+
 
