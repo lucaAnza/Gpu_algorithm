@@ -679,7 +679,7 @@ Nel percorso verso la realizzazione del nostro obiettivo finale, si è ritenuto 
 
 \vspace{2cm}
 
-\subsection{Parallelizazione della "ricerca delle distanze minime" }
+\subsection{Parallelizazione della "ricerca delle distanze minime" } \label{distanze-minime-gpu}
 
 Per implementare la parallelizzazione della funzione di ricerca delle distanze minime, abbiamo seguito un approccio strutturato che ha richiesto la creazione di nuovi file e la modifica di quelli esistenti. Di seguito, descriviamo i passaggi principali di questo processo:
 
@@ -729,22 +729,146 @@ La struttura del kernel è stata progettata per massimizzare il parallelismo, pe
 \begin{figure}[h]
     \centering
     \fbox{\includegraphics[width=0.6\textwidth]{img/GPU_opt1_findDistance.png}}
-    \caption{Analisi dei compiti dei singoli thread (calcolo distanza) }
+    \caption{Configurazione della griglia (calcolo distanza) }
 \end{figure}
 
 \begin{figure}[h]
     \centering
     \fbox{\includegraphics[width=0.6\textwidth]{img/GPU_opt1_findMinDistance.png}}
-    \caption{Analisi dei compiti dei singoli thread (calcolo distanza minima) }
+    \caption{Configurazione della griglia (calcolo distanza minima) }
 \end{figure}
+
+\subsubsection{Riscrittura funzione sequenziale (Distanza di Hamming) }
+
+Abbiamo modificato la funzione che calcola la distanza di Hamming in modo che potesse essere chiamata direttamente dalla GPU. Questo è stato realizzato convertendo la funzione in una funzione di tipo \textbf{\_\_device\_\_}. Tale modifica permette alla funzione di essere eseguita direttamente sul dispositivo GPU, ottimizzando così le prestazioni e riducendo la necessità di trasferimenti di dati tra CPU e GPU.
+
+\vspace{1cm}
+
+CODE : Algoritmo per calcolare distanza di Hamming
+\begin{lstlisting}
+__device__ int DescriptorDistance(const unsigned char *a, const unsigned char* b){
+
+    int dist=0;
+
+    const int32_t* a_int = reinterpret_cast<const int32_t*>(a);
+    const int32_t* b_int = reinterpret_cast<const int32_t*>(b);
+
+    for(int i=0; i<8; i++) {
+        unsigned int v = a_int[i] ^ b_int[i];
+        v = v - ((v >> 1) & 0x55555555);
+        v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
+        dist += (((v + (v >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
+    }
+
+    return dist;
+}
+\end{lstlisting}
+
 
 \subsubsection{Confronto precisione risultati}
 
 //INSERIRE IMMAGINE CONFRONTO RISULTATI perc : uguaglianza perc : differenza
 
-\subsection{Parallelizazione del "filtraggio sulle distanze" }
+\subsection{Parallelizazione del "filtraggio delle distanze" }
 
-// TO DO
+In questa parte dell'esperimento, abbiamo utilizzato i file configurazione del programma citati nella sezione precedente \ref{distanze-minime-gpu}. Questo approccio ci ha permesso di mantenere una coerenza metodologica e di costruire sulla base delle conoscenze già acquisite. Tuttavia, la differenza sostanziale in questa fase è stata l'introduzione di una nuova funzione di tipo \textbf{kernel()}, specifica per l'implementazione CUDA.
+\subsubsection{Configurazione del programma}
+
+\begin{enumerate}
+    \item \texttt{gpu\_stereoMatches.cu}: Contenente il codice CUDA per la parallelizzazione.
+    \item \texttt{gpu\_stereoMatches.h}: Il file header corrispondente.
+\end{enumerate}
+
+\vspace{1cm}
+
+\subsubsection{Progettazione della struttura del kernel}
+
+A seguito è stata progettata la \textbf{configurazione della griglia} in modo tale da sfruttare
+a pieno il parallelismo e minimizzare l'utilizzo di registri della GPU.
+
+\begin{figure}[h]
+    \centering
+    \fbox{\includegraphics[width=0.7\textwidth]{img/GPU_opt1_slidingWindow.png}}
+    \caption{Configurazione della griglia(sliding window) }
+\end{figure}
+
+\newpage
+\subsubsection{Riscrittura funzione sequenziale (Norma Manhattan)}
+
+Abbiamo riscritto la funzione che calcola la norma 1, nota anche come "distanza di Manhattan". Questa funzione, che nel programma CPU originale era stata implementata utilizzando la libreria OpenCV, è stata riscritta come una funzione di tipo \textbf{\_\_device\_\_}.
+
+\begin{lstlisting}
+__device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , int j1 , int i2 , int j2 , int cols1 , int cols2 , int incR , int iL){
+
+    float sum = 0;
+    int countRow = 0;
+    int countCol = 0;
+    int j1_temp = j1;
+    int j2_temp = j2;
+    while(countRow < size){
+        while(countCol < size){
+            int index1 = ( (i1*cols1) + j1 );
+            int index2 = ( (i2*cols2) + j2 );
+            sum = sum + abs(((float) V1[index1] - (float) V2[index2]));
+            countCol++;
+            j1++;
+            j2++;
+        }
+        i1++;
+        i2++;
+        j1 = j1_temp;
+        j2 = j2_temp;
+        countCol = 0;
+        countRow++;
+    }
+
+    return sum;
+    
+}
+\end{lstlisting}
+
+\vspace{1cm}
+
+È importante ricordare la definizione di norma 1 e il suo scopo: la norma 1, anche nota come distanza di Manhattan o distanza cityblock, è definita come la somma dei valori assoluti delle differenze delle coordinate. Nel nostro contesto, viene utilizzata per misurare la dissimilarità tra due vettori di caratteristiche, fornendo una metrica robusta per confrontare descrittori di immagini e identificare corrispondenze tra punti di interesse.
+
+\begin{figure}[h]
+    \centering
+    \fbox{\includegraphics[width=0.4\textwidth]{img/norm1.png}}
+    \caption{Definizione della Norma di Manhattan}
+\end{figure}
+
+\subsubsection{Confronto precisione risultati}
+
+// TODO
+
+\subsection{Analisi dell'ottimizazione : Risultati e Conclusioni}
+
+La parallelizzazione ha portato a un notevole incremento delle prestazioni in termini di tempo di esecuzione. Nello specifico, abbiamo osservato:
+\begin{itemize}
+\item Un incremento della velocità di esecuzione di oltre il \textbf{300\% }rispetto all'implementazione originale su CPU.
+\item Una stabilizzazione della \textbf{precisione dei dati}, accuratezza rimasta pressochè invariata.
+\end{itemize}
+Questo significativo aumento di efficienza dimostra il potenziale della computazione parallela su GPU per questo tipo di algoritmi di ricerca intensiva.
+
+\subsubsection{Risultati}
+
+// TODO : Inserire immagini
+
+\subsubsection{Possibili ottimizazioni future}
+
+Il notevole guadagno in termini di prestazioni offre l'opportunità di aumentare la complessità computazionale in futuro. Questo potrebbe permettere di ottenere risultati ancora più precisi senza compromettere le prestazioni complessive del sistema in termini di \textit{precisione} e \textit{tempo}. Ad esempio:
+\begin{itemize}
+\item Potremmo aumentare il numero di punti di interesse analizzati.
+\item Potremmo implementare algoritmi di matching più sofisticati e computazionalmente intensivi.
+\item Potremmo estendere l'analisi a più frame o a risoluzioni di immagine più elevate.
+\end{itemize}
+
+
+
+
+
+
+
 
 
 \chapter{TO DELETE}
