@@ -410,23 +410,18 @@ void gpu_stereoMatches(ORB_SLAM3::ORBextractor *mpORBextractorLeft , ORB_SLAM3::
     // Minium Distance
     numBlock =nRows;
     threadForBlock = VROWINDICES_MAX_COL;
-    printf("\n---------------------------------------{%d}----------------------------------------------\n" , time_calls);
-    printf("\nSto per lanciare il test della GPU by Luca Anzaldi: \n");
-    printf("\t - Launching function (findMiniumDistance) :  %d block , %d thread for block ---> total = %d threads \n" , numBlock , threadForBlock , numBlock * threadForBlock );
     findMiniumDistance<<<numBlock,threadForBlock>>>(vRowIndices_gpu , mvKeys_gpu , mvKeysRight_gpu , mDescriptors_gpu ,mDescriptorsRight_gpu , mvInvScaleFactors_gpu, mvScaleFactors_gpu , size_refer_gpu , incremental_size_refer_gpu , miniumDist_gpu , miniumDistIndex_gpu );
     cudaDeviceSynchronize();
     
     // Sliding Window
     numBlock =((int)N/NUM_THREAD)+1;
     threadForBlock = NUM_THREAD;
-    printf("\t - Launching function (slidingWindow) : %d block , %d thread for block ---> total = %d threads \n" , numBlock , threadForBlock , numBlock * threadForBlock );
     slidingWindow<<< numBlock ,threadForBlock , vDistsSize>>>(mpORBextractorLeft->getRows() , mpORBextractorLeft->getCols() , mpORBextractorLeft->getd_scaleFactor() , mpORBextractorLeft->getd_images(), mpORBextractorLeft->getd_inputImage() , 
                                                                    mpORBextractorRight->getRows() , mpORBextractorRight->getCols() , mpORBextractorRight->getd_scaleFactor(), mpORBextractorRight->getd_images(), mpORBextractorRight->getd_inputImage() , 
                                                                    mvKeys_gpu,mvKeysRight_gpu, mvInvScaleFactors_gpu,mvScaleFactors_gpu,miniumDist_gpu,miniumDistIndex_gpu , IL , IR , vDistIdx_gpu , mvDepth_gpu , mvuRight_gpu);
     cudaDeviceSynchronize();
     
         
-
     // Fill vDistIdx , mvuRight , mvDepth
     int bestDist;
     cudaMemcpy(vDistIdx_cpu, vDistIdx_gpu, sizeof(int) * N, cudaMemcpyDeviceToHost);

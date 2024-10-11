@@ -35,7 +35,7 @@ void Frame::ComputeStereoMatches()
         const cv::KeyPoint &kp = mvKeysRight[iR];
 
         const float &kpY = kp.pt.y;
-        const float r = 2.0f*mvScaleFactors[mvKeysRight[iR].octave];
+        const float r = 2.0f*mvScaleFactors[mvKeysRight[iR].octave];  
         const int maxr = ceil(kpY+r);
         const int minr = floor(kpY-r);
 
@@ -188,8 +188,9 @@ void Frame::ComputeStereoMatches()
     */
     
 
-    // Chiama la funzione parallela di stereo matching
+    // Chiama la funzione parallela di stereo matching (commentare - per eseguire su CPU)
     gpu_stereoMatches( mpORBextractorLeft , mpORBextractorRight , time_calls , vRowIndices ,mvKeys , mvKeysRight , minZ , minD , maxD , ORBmatcher::TH_HIGH ,thOrbDist , mDescriptors , mDescriptorsRight , mvInvScaleFactors , mvScaleFactors , size_refer , mbf, mvDepth , mvuRight , vDistIdx);
+    
     sort(vDistIdx.begin(),vDistIdx.end());
 
     const float median = vDistIdx[vDistIdx.size()/2].first;
