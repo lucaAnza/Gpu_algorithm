@@ -265,11 +265,87 @@ I \textit{registri} sono la forma di memoria più veloce in CUDA e sono utilizza
 
 
 
-\chapter{Panoramica della localizzazione e mappatura simultanea }
+\chapter{Panoramica della localizzazione e mappatura simultanea (SLAM)}
 
-\section{Python}
+\section{Introduzione al SLAM}
 
-È un linguaggio di programmazione ad alto livello, interpretato e
+La Localizzazione e Mappatura Simultanea, comunemente nota come \textbf{SLAM} (\textit{Simultaneous Localization and Mapping}), rappresenta uno dei pilastri fondamentali della robotica moderna e della visione artificiale. SLAM si riferisce al processo computazionale mediante il quale un agente autonomo, come un robot o un veicolo, costruisce una mappa dell'ambiente circostante mentre contemporaneamente determina la propria posizione all'interno di essa.
+
+\vspace{1cm}
+
+\subsection{Importanza e applicazioni del SLAM}
+
+L'importanza del SLAM risiede nella sua capacità di conferire autonomia a sistemi robotici in ambienti non strutturati o sconosciuti. Le applicazioni del SLAM sono molteplici e in rapida espansione:
+
+
+\begin{enumerate}
+    \item \textbf{Robotica mobile}: SLAM è essenziale per la navigazione autonoma di robot in ambienti interni ed esterni.
+    \item \textbf{Veicoli autonomi}: Automobili e droni self-driving utilizzano tecniche SLAM per navigare in sicurezza.
+    \item \textbf{Realtà aumentata (AR)}: SLAM permette il posizionamento accurato di oggetti virtuali nel mondo reale.
+    \item \textbf{Esplorazione spaziale}: Robot su altri pianeti utilizzano SLAM per navigare e mappare terreni sconosciuti.
+    \item \textbf{Ispezioni industriali}: SLAM facilita l'automazione di ispezioni in ambienti complessi come impianti industriali.
+    \item \textbf{Servizi di emergenza}: Può assistere nelle operazioni di ricerca e salvataggio in aree disastrate.
+\end{enumerate}
+
+\subsection{Sfide principali nel campo del SLAM}
+
+\begin{enumerate}
+    \item \textbf{Incertezza e rumore}: I sensori non sono perfetti e introducono errori nelle misurazioni.
+    \item \textbf{Ambienti dinamici}: Oggetti in movimento possono complicare la costruzione di mappe coerenti.
+    \item \textbf{Loop closure}: Riconoscere luoghi già visitati è cruciale ma computazionalmente costoso.
+    \item \textbf{Scalabilità}: Mantenere performance in tempo reale su mappe di grandi dimensioni.
+    \item \textbf{Robustezza}: Garantire un funzionamento affidabile in condizioni ambientali variabili.
+    \item \textbf{Efficienza computazionale}: Ottimizzare l'utilizzo delle risorse, specialmente su piattaforme con capacità limitate.
+\end{enumerate}
+
+\newpage
+
+\subsection{Caratteristiche principali di ORB-SLAM}
+
+\subsubsection{Rilevamento delle caratteristiche}
+        Utilizza ORB (Oriented FAST and Rotated BRIEF) come descrittori di caratteristiche visive. Questi sono efficienti sia in termini di tempo di calcolo che di robustezza rispetto a variazioni di illuminazione e rotazioni.
+
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{img/ORB_SLAM2_feature.png}
+    \caption{Ottenimento dei punti chiave in un frame \cite{SLAM2_Feature}}
+\end{figure}
+
+
+\subsubsection{Localizzazione e Mappatura}
+        ORB-SLAM integra la localizzazione del dispositivo e la mappatura dell'ambiente in un unico framework. Utilizza le caratteristiche ORB estratte dalle immagini per stimare la posizione e orientamento della fotocamera mentre costruisce una mappa 3D dell'ambiente.
+
+
+
+\subsubsection{Gestione delle chiavi e dei loop closure}
+        Il sistema gestisce una mappa di punti chiave e riconosce i ritorni (\textbf{loop closures}) per correggere eventuali errori accumulati nella stima della posizione, migliorando così l'accuratezza della mappa e della localizzazione.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{img/SLAM_schema.jpg}
+    \caption{Diagramma a blocchi generico e semplificato del processo SLAM basato sulle caratteristiche \cite{SLAM_algoritm2}}
+    
+\end{figure}
+
+\subsubsection{Tracking, Mappatura e Rilevamento di Loop}
+        ORB-SLAM divide il processo in tre thread principali: \textbf{tracking} (tracciamento della fotocamera), \textbf{mappatura} (costruzione e aggiornamento della mappa) e \textbf{rilevamento di loop} (riconoscimento di posizioni precedentemente visitate) con successiva chiusura del loop.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{img/loop_closure.png}
+    \caption{Rappresentazione algoritmo di loop closure \cite{loop_closure}}
+    
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{img/map_viewer.png}
+    \caption{"Cattura" dello schermo durante la generazione della mappa ambientale}
+\end{figure}
+
+
+
 
 \chapter{Analisi e scopo della ricerca}
 
