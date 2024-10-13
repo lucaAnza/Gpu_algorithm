@@ -509,6 +509,8 @@ E successivamente andrà a scartare i candidati non ottimali.
     \caption{Schematizzazione a basso livello (CPU) }
 \end{figure}
 
+\subsection{Parallelizzazione della ricerca dei migliori candidati}
+
 \subsection{Schema del filtraggio finale sui punti chiave}
 
 In questa sezione, analizzeremo il processo di Sliding Window nel contesto del nostro sistema ORB-SLAM 3 nella versiona non ottimizata per CPU. 
@@ -612,11 +614,18 @@ for(int iR=0; iR<Nr; iR++){
 
 \subsection{Analisi dell'Impatto del parametro Radius: Risultati e Limiti}
 
-L'esperimento condotto per valutare l'influenza del parametro 'radius' sulle prestazioni del sistema ORB-SLAM 3 ha portato a risultati che, purtroppo, non possiamo considerare particolarmente positivi, soprattutto in termini di \textit{miglioramento della precisione}.
+L'esperimento condotto per valutare l'influenza del parametro 'radius' sulle prestazioni del sistema ORB-SLAM 3 ha portato a risultati che possiamo considerare positivi, soprattutto in termini di \textit{miglioramento della precisione}.
 
-Contrariamente alle nostre aspettative iniziali, le variazioni del valore del raggio, sia in aumento che in diminuzione, non hanno prodotto i miglioramenti sperati né in termini di  \textbf{ efficienza computazionale} né, cosa più rilevante, in termini di \textbf{accuratezza} dei risultati.
+Le variazioni del valore del raggio in aumento, hanno prodotto dei miglioramenti termini di precisione per il valore ATE(m).
 
-Si nota inoltre che i tempi nella parte di \textbf{Stereo Matching} hanno un aumento significativo fino a raggiungere un incremento del 100\%.
+\begin{itemize}
+    \item \textit{Kitti04 / Kitti07} : Miglioramento precisione ATE per un moltiplicatore di raggio pari a \textbf{16}.
+    \item \textit{Kitti06} : Miglioramento precisione ATE per un moltiplicatore di raggio pari a \textbf{4}.
+\end{itemize}
+
+l'\textbf{ATE} (Absolute Trajectory Error) è una misura utilizzata per valutare la precisione della traiettoria stimata dal sistema di SLAM rispetto alla traiettoria di riferimento (ground truth).
+
+Si osserva inoltre che i tempi nella parte di \textbf{Stereo Matching} mostrano un aumento significativo, con incrementi che arrivano fino al 100\%. Si può prevedere che questo problema diventi trascurabile con la parallelizzazione dell'algoritmo. L'aumento dei tempi di elaborazione, infatti, potrà essere mitigato sfruttando l'elaborazione parallela, consentendo di distribuire il carico computazionale e ridurre significativamente i tempi complessivi.
 
 
 
@@ -712,7 +721,7 @@ Si nota inoltre che i tempi nella parte di \textbf{Stereo Matching} hanno un aum
     \end{tabular}
 \end{table}
 
-Nella sezione successiva proporremo nuove direzioni per la ricerca, inclusa l'esplorazione di altri parametri o modifiche più sostanziali all'algoritmo di base. Inoltre, considereremo l'opportunità di concentrarci maggiormente sull'ottimizzazione attraverso l'implementazione GPU, che potrebbe offrire maggiori opportunità per migliorare sia l'efficienza che la precisione del sistema.
+Nella sezione successiva analizzeremo i risultati ottenuti in termini di tempi di esecuzione a seguito della parallelizazione  dell'algoritmo. Questo potrebbe offrire miglioramenti significativi sia in termini di efficienza e permettere un miglioramento della precisione senza perdite di prestazioni.
 
 
 \newpage
@@ -843,7 +852,11 @@ __device__ int DescriptorDistance(const unsigned char *a, const unsigned char* b
 
 \subsubsection{Confronto precisione risultati}
 
-//INSERIRE IMMAGINE CONFRONTO RISULTATI perc : uguaglianza perc : differenza
+\begin{figure}[h]
+    \centering
+    \fbox{\includegraphics[width=1\textwidth]{img/minium_distance_accuracy.png}}
+    \caption{Risultato accuratezza dell'algoritmo}
+\end{figure}
 
 \subsection{Parallelizazione del "filtraggio delle distanze" }
 
@@ -915,20 +928,120 @@ __device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , i
 
 \subsubsection{Confronto precisione risultati}
 
-// TODO
+\begin{figure}[h]
+    \centering
+    \fbox{\includegraphics[width=1\textwidth]{img/sliding_window_accuracy.png}}
+    \caption{Risultato accuratezza dell'algoritmo}
+\end{figure}
 
+\newpage
 \subsection{Analisi dell'ottimizazione : Risultati e Conclusioni}
+
+\subsubsection{Risultati}
+
+\begin{table}[h]
+    \centering
+    \caption{Esperimenti variazione raggio (KITTY DATASET - 04) }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Device & \cellcolor{blue!20}GPU & \cellcolor{orange!20}CPU  \\
+        \midrule
+        %%%
+        Translation error & \cellcolor{green!20}0.410 & 0.450  \\
+        %%%
+        Rotational error  & \cellcolor{green!20}0.220 & \cellcolor{green!20}0.220  \\
+        %%%
+        ATE (m)           & 0.610 & \cellcolor{green!20}0.480  \\
+        %%%
+        RPE (m)           & \cellcolor{green!20}0.014 & 0.015  \\
+        %%%
+        RPE (deg)         & \cellcolor{green!20}0.041 & 0.042  \\
+        %%%
+        ORB Extraction (ms) & \cellcolor{green!20}5.108 & 5.123  \\
+        %%%
+        Stereo Matching (ms) & 3.302 & \cellcolor{green!20}\textbf{0.939} && $\xleftarrow{}$ miglioramento (351\%) \\
+        %%%
+        ORB Extraction ($\sigma$) & 3.425 & \cellcolor{green!20}3.388  \\
+        %%%
+        Stereo Matching ($\sigma$) & 0.595 & \cellcolor{green!20}\textbf{0.117} && $\xleftarrow{}$ miglioramento (508\%)\\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\vspace{3cm}
+
+\begin{table}[h]
+    \centering
+    \caption{Esperimenti variazione raggio (KITTY DATASET - 06) }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Device & \cellcolor{blue!20}GPU & \cellcolor{orange!20}CPU  \\
+        \midrule
+        %%%
+        Translation error & \cellcolor{green!20}0.670 & 0.690  \\
+        %%%
+        Rotational error  & \cellcolor{green!20}0.300 & 0.360  \\
+        %%%
+        ATE (m)           & \cellcolor{green!20}4.510 & 4.850  \\
+        %%%
+        RPE (m)           & \cellcolor{green!20}0.014 & 0.015  \\
+        %%%
+        RPE (deg)         & \cellcolor{green!20}0.033 & 0.034  \\
+        %%%
+        ORB Extraction (ms) & \cellcolor{green!20}4.729 & 4.768 &&  \\
+        %%%
+        Stereo Matching (ms) & 3.089 & \cellcolor{green!20}\textbf{0.947} & $\xleftarrow{}$ miglioramento (326\%) \\
+        %%%
+        ORB Extraction ($\sigma$) & 3.580 & \cellcolor{green!20}3.399  \\
+        %%%
+        Stereo Matching ($\sigma$) & 0.553 & \cellcolor{green!20}\textbf{0.124} & $\xleftarrow{}$ miglioramento (445\%) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+
+\begin{table}[h]
+    \centering
+    \caption{Esperimenti variazione raggio (KITTY DATASET - 07) }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Device & \cellcolor{blue!20}GPU & \cellcolor{orange!20}CPU  \\
+        \midrule
+        %%%
+        Translation error & 0.540 & \cellcolor{green!20}0.480  \\
+        %%%
+        Rotational error  & \cellcolor{green!20}0.110 & 0.130  \\
+        %%%
+        ATE (m)           & 0.700 & \cellcolor{green!20}0.630  \\
+        %%%
+        RPE (m)           & \cellcolor{green!20}0.017 & \cellcolor{green!20}0.017  \\
+        %%%
+        RPE (deg)         & 0.034 & \cellcolor{green!20}0.032  \\
+        %%%
+        ORB Extraction (ms) & \cellcolor{green!20}5.520 & 5.524 &&  \\
+        %%%
+        Stereo Matching (ms) & 3.284 & \cellcolor{green!20}\textbf{0.969}  & $\xleftarrow{}$ miglioramento (338\%)\\
+        %%%
+        ORB Extraction ($\sigma$) & 6.911 & \cellcolor{green!20}6.841  \\
+        %%%
+        Stereo Matching ($\sigma$) & 0.545 & \cellcolor{green!20}\textbf{0.130} & $\xleftarrow{}$ miglioramento (420\%) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsubsection{Conclusioni}
 
 La parallelizzazione ha portato a un notevole incremento delle prestazioni in termini di tempo di esecuzione. Nello specifico, abbiamo osservato:
 \begin{itemize}
 \item Un incremento della velocità di esecuzione di oltre il \textbf{300\% }rispetto all'implementazione originale su CPU.
-\item Una stabilizzazione della \textbf{precisione dei dati}, accuratezza rimasta pressochè invariata.
+\item Una stabilità nella \textbf{precisione dei dati}, l'accuratezza è rimasta pressochè invariata.
 \end{itemize}
 Questo significativo aumento di efficienza dimostra il potenziale della computazione parallela su GPU per questo tipo di algoritmi di ricerca intensiva.
 
-\subsubsection{Risultati}
 
-// TODO : Inserire immagini
 
 \subsubsection{Possibili ottimizazioni future}
 
