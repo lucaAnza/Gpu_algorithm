@@ -347,7 +347,7 @@ L'importanza del SLAM risiede nella sua capacità di conferire autonomia a siste
 
 
 
-\chapter{Analisi e scopo della ricerca}
+\chapter{Analisi e implementazione della ricerca}
 
 \section{Introduzione}
 
@@ -460,7 +460,7 @@ Una volta che si è riusciti ad avviare la versione sopra citata, è possibile a
 Infatti la versione attualmente in esecuzione, non è quella citata all'inizio del capitolo, questo perchè non contiene la parte di \textit{Estrazione ORB} parallelizata.
 Per fare in modo di eseguire la versione in parallelo è necessario seguire i medesimi step con il seguente repository: \url{https://git.hipert.unimore.it/fmuzzini/cuda-accelerated-orb-slam}
 
-\section{Analisi delle possibili ottimizazioni}
+\section{Analisi delle possibili funzioni da ottimizare}
 
 Durante l'analisi del codice di ORB-SLAM3, è stata individuata la funzione 
 \begin{lstlisting}
@@ -469,7 +469,7 @@ void Frame::ComputeStereoMatches()}
 che si occupa dell'esecuzione della parte di \textbf{Stereo Matching}. 
 Successivamente è stata eseguita una schematizzazione ed è stata analizzatata la sua struttura per identificare le possibili aree su cui intervenire per effettuare le ottimizzazioni.
 
-\subsection{Schema generale}
+\subsection{Schema generale - ComputeStereoMatches() } \label{schema-generale-computeStereo}
 
 Lo schema generale del funzionamento della funzione \texttt{ComputeStereoMatches()} è illustrato nell'immagine sottostante. Tale schema si compone di tre macro-funzioni principali e mostra il numero medio di iterazioni eseguite, permettendo di vedere il carico computazionale svolto.
 
@@ -486,7 +486,7 @@ Lo schema generale del funzionamento della funzione \texttt{ComputeStereoMatches
 \end{enumerate}
 
 \newpage
-\subsection{Schema della ricerca dei migliori candidati}
+\subsection{Schema della ricerca delle distanze minime} \label{ricerca-candidati}
 
 Nell'illustrazione sottostante è possibile visionare la schematizzazione della funzione addetta a trovare i migliori punti chiave tra quelli candidati (cioè quelli con distanza minore dall'immagine a sinistra)
 
@@ -509,9 +509,7 @@ E successivamente andrà a scartare i candidati non ottimali.
     \caption{Schematizzazione a basso livello (CPU) }
 \end{figure}
 
-\subsection{Parallelizzazione della ricerca dei migliori candidati}
-
-\subsection{Schema del filtraggio finale sui punti chiave}
+\subsection{Schema del filtraggio finale sui punti chiave} \label{filtraggio-finale}
 
 In questa sezione, analizzeremo il processo di Sliding Window nel contesto del nostro sistema ORB-SLAM 3 nella versiona non ottimizata per CPU. 
 
@@ -521,231 +519,34 @@ In questa sezione, analizzeremo il processo di Sliding Window nel contesto del n
     \item È importante notare che il filtraggio associato alla Sliding Window viene eseguito successivamente al calcolo della distanza minore di un singolo punto chiave. Questo permette, eventualmente, di non attendere il calcolo di tutte le distanze ma di eseguire il filtraggio ad ogni singolo punto chiave.
 \end{enumerate}
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.6\textwidth]{img/sliding_window_high.png}
-    \caption{Schematizzazione a basso livello (CPU) }
+    \caption{Schematizzazione a alto livello (CPU) }
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \fbox{\includegraphics[width=1\textwidth]{img/sliding_window.png}}
     \caption{Schematizzazione a basso livello (CPU) }
 \end{figure}
 
+\newpage
+\section{Ottimizzazione della funzione "ComputeStereoMatches()" } \label{ottimizzazione-computeStereo}
 
-\chapter{Esperimenti e risultati}
-
-\section{Introduzione agli esperimenti}
-
-Nel contesto della nostra ricerca si è pensato di progettare una serie di esperimenti per valutare l'efficacia delle nostre modifiche. Questa sezione delinea la metodologia sperimentale, gli strumenti utilizzati e l'ambiente hardware in cui sono stati condotti gli esperimenti.
-
-\subsection{Valutazione della Qualità}
-
-La qualità degli esperimenti sarà valutata utilizzando un programma specializzato scritto in Python. Questo software è stato sviluppato specificamente per l'analisi e la valutazione di sistemi di odometria visiva e SLAM, con particolare attenzione alle prestazioni su dataset KITTI.
-
-Il programma di valutazione è disponibile pubblicamente e può essere accessibile al seguente link:
-\url{https://github.com/Huangying-Zhan/kitti-odom-eval}
-
-\subsection{Ambiente Hardware e Software}
-
-Gli esperimenti sono stati condotti su un sistema con le seguenti specifiche tecniche:
-
-\begin{itemize}
-    \item CPU: 12th Gen Intel(R) Core(TM) i7-1280P
-    \item GPU: GeForce RTX 3060 Mobile / Max-Q , 6Gb
-    \item RAM: 16 GB DDR4-3200
-    \item Storage: 1 TB NVMe SSD
-    \item Sistema Operativo: Linux mint 21.3
-    \item CUDA Driver Version: 535.183.01  
-    \item CUDA Version: 12.2
-\end{itemize}
-
-\subsection{Procedura Sperimentale}
-
-Per eseguire gli esperimenti e la valutazione, seguire il seguente tutorial script:
+In questa sezione, verranno illustrati dettagliatamente i passaggi necessari per l'ottimizzazione della funzione \textbf{computeStereoMatches()} al fine di sfruttare appieno le capacità di elaborazione parallela offerte dalle GPU. L'obiettivo principale di questa ottimizzazione è migliorare significativamente le prestazioni dell'algoritmo di \textbf{stereo matching}, riducendo i tempi di esecuzione e aumentando l'efficienza complessiva del sistema.
+Verranno esaminati i seguenti aspetti chiave del processo di ottimizzazione:
 
 \begin{enumerate}
-    \item Spostarsi nella directory \texttt{/kitti-odom-eval}.
-    \item Eseguire il comando: \verb|conda env update --file <nome_file.yml> --prune|
-    \item Attivare l'ambiente conda con: \verb|conda activate kitti_eval|
-    \item Spostare il file "CameraTrajectory.txt" nella directory \texttt{/result} e rinominarlo in "\texttt{<SEQ>.txt}" (Esempio: "07.txt").
-    \item Eseguire il comando di valutazione: 
-    \begin{verbatim}
-    python3 eval_odom.py --result result --seqs <sequence> --align scale
-    \end{verbatim}
-\end{enumerate}
-
-Questa procedura ci permetterà di valutare in modo consistente e riproducibile le prestazioni del nostro sistema ottimizzato, confrontandole con i risultati di riferimento del dataset KITTI.
-
-Nei paragrafi seguenti, presenteremo i risultati ottenuti da questi esperimenti e discuteremo le implicazioni per il nostro lavoro di ottimizzazione.
-
-\newpage
-\section{Esperimento 1 - Variazione raggio dei candidati}
-
-In questa fase del nostro studio, procederemo a modificare il parametro \textbf{radiusMultiplier}  della funzione che raccoglie i \textbf{candidati}. L'obiettivo è analizzare l'impatto di queste variazioni sulle prestazioni complessive del sistema. Nello specifico, valuteremo i potenziali vantaggi e svantaggi derivanti da ciascuna modifica, con particolare attenzione alle \textbf{implicazioni temporali}.
-
-Qualora si riscontrino significativi aumenti nei tempi di elaborazione, considereremo l'opportunità di \textbf{ottimizzare il processo} mediante l'utilizzo di GPU. L'implementazione di soluzioni di calcolo parallelo su GPU potrebbe consentirci di mitigare gli effetti negativi osservati, sfruttando la capacità di elaborazione massiccia di queste unità hardware.
-
-Il fine ultimo di questa analisi è individuare una configurazione ottimale che bilanci efficacemente la qualità dei risultati e l'efficienza computazionale. Attraverso questa metodologia di sperimentazione e ottimizzazione, miriamo a sviluppare \textbf{una versione migliorata del sistema}, che rappresenti un avanzamento significativo rispetto all'implementazione originale.
-
-\vspace{1cm}
-
-CODE : Codice relativo all'inserimento dei candidati
-\begin{lstlisting}
-for(int iR=0; iR<Nr; iR++){
-    const cv::KeyPoint &kp = mvKeysRight[iR];
-    const float &kpY = kp.pt.y;
-    
-    // Variabile modifica per esperimento
-    const float radiusMultiplier = 2.0 
-    const float r = radiusMultiplier *mvScaleFactors[mvKeysRight[iR].octave];  
-    const int maxr = ceil(kpY+r);
-    const int minr = floor(kpY-r);
-    // Inserimento candidati nell'intorno del raggio
-    for(int yi=minr;yi<=maxr;yi++){
-        vRowIndices[yi].push_back(iR);
-        size_refer[yi]++;   
-    }
-}
-\end{lstlisting}
-
-\vspace{4cm}
-
-\subsection{Analisi dell'Impatto del parametro Radius: Risultati e Limiti}
-
-L'esperimento condotto per valutare l'influenza del parametro 'radius' sulle prestazioni del sistema ORB-SLAM 3 ha portato a risultati che possiamo considerare positivi, soprattutto in termini di \textit{miglioramento della precisione}.
-
-Le variazioni del valore del raggio in aumento, hanno prodotto dei miglioramenti termini di precisione per il valore ATE(m).
-
-\begin{itemize}
-    \item \textit{Kitti04 / Kitti07} : Miglioramento precisione ATE per un moltiplicatore di raggio pari a \textbf{16}.
-    \item \textit{Kitti06} : Miglioramento precisione ATE per un moltiplicatore di raggio pari a \textbf{4}.
-\end{itemize}
-
-l'\textbf{ATE} (Absolute Trajectory Error) è una misura utilizzata per valutare la precisione della traiettoria stimata dal sistema di SLAM rispetto alla traiettoria di riferimento (ground truth).
-
-Si osserva inoltre che i tempi nella parte di \textbf{Stereo Matching} mostrano un aumento significativo, con incrementi che arrivano fino al 100\%. Si può prevedere che questo problema diventi trascurabile con la parallelizzazione dell'algoritmo. L'aumento dei tempi di elaborazione, infatti, potrà essere mitigato sfruttando l'elaborazione parallela, consentendo di distribuire il carico computazionale e ridurre significativamente i tempi complessivi.
-
-
-
-\begin{table}[h]
-    \centering
-    \caption{Esperimenti variazione raggio (KITTY DATASET - 04) }
-    \begin{tabular}{lcccccc}
-        \toprule
-        \rowcolor{gray!20}
-        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
-        \midrule
-        %%%
-        Translation error & 0.47 & \cellcolor{green!20}0.46 & \cellcolor{green!20}0.46 & 0.47 & 0.47 \\
-        %%%
-        Rotational error  & \cellcolor{green!20}0.07 & 0.08 & 0.09 & \cellcolor{green!20}0.07 & \cellcolor{green!20}0.07 \\
-        %%%
-        ATE (m)           & 0.73 & 0.77 & 0.75 & 0.78 & \cellcolor{green!20}0.71 \\
-        %%%
-        RPE (m)           & \cellcolor{green!20}0.017 & \cellcolor{green!20}0.017 & \cellcolor{green!20}0.017 & \cellcolor{green!20}0.017 & \cellcolor{green!20}0.017 \\
-        %%%
-        RPE (deg)         & 0.031 & 0.032 & 0.031 & \cellcolor{green!20}0.030 & \cellcolor{green!20}0.030 \\
-        %%%
-        ORB Extraction (ms) & 9.1419 & \cellcolor{green!20}8.9207 & \cellcolor{green!20}8.9707 & 9.0029 & 8.9305 \\
-        %%%
-        Stereo Matching (ms) & \cellcolor{green!20}3.0216 & 3.391 & 3.962 & 4.8351 & 6.345 \\
-        %%%
-        ORB Extraction ($\sigma$) & 61.54 & \cellcolor{green!20}57.737 & 58.214 & 58.98 & 58.148 \\
-        %%%
-        Stereo Matching ($\sigma$) & \cellcolor{green!20}0.54303 & 0.63088 & 0.68821 & 0.74869 & 0.6854 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-
-\begin{table}[h]
-    \centering
-    \caption{Esperimenti variazione raggio (KITTY DATASET - 06) }
-    \begin{tabular}{lcccccc}
-        \toprule
-        \rowcolor{gray!20}
-        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
-        \midrule
-        %%%
-        Translation error & 0.48 & 0.48 & \cellcolor{green!20}0.46 & 0.48 & 0.48 \\
-        %%%
-        Rotational error & \cellcolor{green!20}0.15 & 0.16 & \cellcolor{green!20}0.15 & 0.16 & \cellcolor{green!20}0.15 \\
-        %%%
-        ATE (m)           & 2.43 & 2.45 & \cellcolor{green!20}2.29 & 2.59 & 2.31 \\
-        %%%
-        RPE (m)           & \cellcolor{green!20}0.013 & \cellcolor{green!20}0.013 & 0.014 & 0.014 & 0.014 \\
-        %%%
-        RPE (deg)         & \cellcolor{green!20}0.031 & \cellcolor{green!20}0.031 & 0.032 & 0.032 & 0.032 \\
-        %%%
-        ORB Extraction (ms) & 6.0595 & 6.0632 & \cellcolor{green!20}6.0573 & 6.0988 & 6.1996 \\
-        %%%
-        Stereo Matching (ms) & 2.832 & 3.231 & 3.732 & 4.678 & 6.281 \\
-        %%%
-        ORB Extraction ($\sigma$) & 28.606 & \cellcolor{green!20}28.451 & 28.551 & 28.839 & 28.839 \\
-        %%%
-        Stereo Matching ($\sigma$) & \cellcolor{green!20}0.534 & 0.557 & 0.645 & 0.716 & 0.681 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\newpage
-\begin{table}[h]
-    \centering
-    \caption{Esperimenti variazione raggio (KITTY DATASET - 07) }
-    \begin{tabular}{lcccccc}
-        \toprule
-        \rowcolor{gray!20}
-        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
-        \midrule
-        %%%
-        Translation error & 0.48 & \cellcolor{green!20}0.44 & 0.47 & 0.46 & 0.47 \\
-        %%%
-        Rotational error  & 0.24 & \cellcolor{green!20}0.23 & 0.25 & 0.26 & 0.26 \\
-        %%%
-        ATE (m)           & 0.52 & 0.49 & 0.5 & 0.54 & \cellcolor{green!20}0.46 \\
-        %%%
-        RPE (m)           & 0.014 & \cellcolor{green!20}0.013 & 0.014 & 0.014 & 0.014 \\
-        %%%
-        RPE (deg)         & 0.04 & \cellcolor{green!20}0.039 & 0.041 & 0.040 & 0.040 \\
-        %%%
-        ORB Extraction (ms) & 6.305 & 6.3717 & 6.356 & \cellcolor{green!20}6.280 & 6.679 \\
-        %%%
-        Stereo Matching (ms) & \cellcolor{green!20}3.087 & 3.573 & 4.072 & 4.896 & 6.679 \\
-        %%%
-        ORB Extraction ($\sigma$) & 29.31 & \cellcolor{green!20}28.58 & 29.45 & 28.65 & 29.87 \\
-        %%%
-        Stereo Matching ($\sigma$) & 0.535 & \cellcolor{green!20}0.526 & 0.642 & 0.689 & 0.688 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-Nella sezione successiva analizzeremo i risultati ottenuti in termini di tempi di esecuzione a seguito della parallelizazione  dell'algoritmo. Questo potrebbe offrire miglioramenti significativi sia in termini di efficienza e permettere un miglioramento della precisione senza perdite di prestazioni.
-
-
-\newpage
-\section{Esperimento 2 - Parallelizazione: ricerca delle distanze minime e filtraggio}
-
-In questo capitolo, presenteremo il secondo esperimento condotto nell'ambito della nostra ricerca sull'ottimizzazione. L'obiettivo principale di questo esperimento è stato quello di parallelizzare due \textit{fasi critiche del nostro algoritmo}:
-
-\begin{itemize}
-    \item La ricerca delle distanze minime
-    \item Il successivo processo di filtraggio
-\end{itemize}
-
-Attraverso questa parallelizzazione, ci proponiamo di sfruttare appieno le capacità di elaborazione parallela offerte dalle GPU, con l'intento di ottenere un significativo miglioramento delle prestazioni rispetto all'implementazione sequenziale.
-Nel corso di questo capitolo, esamineremo in dettaglio:
-
-\begin{enumerate}
-    \item Gli step eseguiti per implementare la parallelizzazione.
-    \item I risultati ottenuti dall'esperimento.
-    \item Un'analisi comparativa delle prestazioni tra l'implementazione sequenziale e quella parallela.
+    \item La realizzazione di un programma intermedio per avvicinarci alla soluzione finale.
+    \item La distribuzione delle sotto-funzioni nei diversi dispositivi (\textit{GPU} oppure \textit{CPU}).
+    \item Lo schema specifico per la "\textbf{ricerca delle distanze minime}" (\ref{ricerca-candidati})
+    \item Lo schema specifico per il "\textbf{filtraggio sui punti chiave}" (\ref{filtraggio-finale})
 \end{enumerate}
 
 Questa esplorazione ci permetterà di valutare l'efficacia dell'approccio adottato e di trarre conclusioni sulle potenzialità dell'ottimizzazione in questo contesto specifico.
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \fbox{\includegraphics[width=0.5\textwidth]{img/experiment2_schema.png}}
     \caption{Distribuzione delle funzioni su device}
@@ -934,12 +735,213 @@ __device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , i
     \caption{Risultato accuratezza dell'algoritmo}
 \end{figure}
 
-\newpage
-\subsection{Analisi dell'ottimizazione : Risultati e Conclusioni}
+\chapter{Esperimenti e risultati}
 
-\subsubsection{Risultati}
+\section{Introduzione agli esperimenti}
+
+Nel contesto della nostra ricerca si è pensato di progettare una serie di esperimenti per valutare l'efficacia delle nostre modifiche e per trovare eventuali variazioni utili a sfruttare l'ottimizazione realizzata. Questa sezione delinea la metodologia sperimentale, gli strumenti utilizzati e l'ambiente hardware in cui sono stati condotti gli esperimenti.
+
+\subsection{Valutazione della Qualità}
+
+La qualità degli esperimenti sarà valutata utilizzando un programma specializzato scritto in Python. Questo software è stato sviluppato specificamente per l'analisi e la valutazione di sistemi di odometria visiva e SLAM, con particolare attenzione alle prestazioni su dataset KITTI.
+
+Il programma di valutazione è disponibile pubblicamente e può essere accessibile al seguente link:
+\url{https://github.com/Huangying-Zhan/kitti-odom-eval}
+
+\subsection{Ambiente Hardware e Software}
+
+Gli esperimenti sono stati condotti su un sistema con le seguenti specifiche tecniche:
+
+\begin{itemize}
+    \item CPU: 12th Gen Intel(R) Core(TM) i7-1280P
+    \item GPU: GeForce RTX 3060 Mobile / Max-Q , 6Gb
+    \item RAM: 16 GB DDR4-3200
+    \item Storage: 1 TB NVMe SSD
+    \item Sistema Operativo: Linux mint 21.3
+    \item CUDA Driver Version: 535.183.01  
+    \item CUDA Version: 12.2
+\end{itemize}
+
+\subsection{Procedura Sperimentale}
+
+Per eseguire gli esperimenti e la valutazione, seguire il seguente tutorial script:
+
+\begin{enumerate}
+    \item Spostarsi nella directory \texttt{/kitti-odom-eval}.
+    \item Eseguire il comando: \verb|conda env update --file <nome_file.yml> --prune|
+    \item Attivare l'ambiente conda con: \verb|conda activate kitti_eval|
+    \item Spostare il file "CameraTrajectory.txt" nella directory \texttt{/result} e rinominarlo in "\texttt{<SEQ>.txt}" (Esempio: "07.txt").
+    \item Eseguire il comando di valutazione: 
+    \begin{verbatim}
+    python3 eval_odom.py --result result --seqs <sequence> --align scale
+    \end{verbatim}
+\end{enumerate}
+
+Questa procedura ci permetterà di valutare in modo consistente e riproducibile le prestazioni del nostro sistema ottimizzato, confrontandole con i risultati di riferimento del dataset KITTI.
+
+Nei paragrafi seguenti, presenteremo i risultati ottenuti da questi esperimenti e discuteremo le implicazioni per il nostro lavoro di ottimizzazione.
+
+\newpage
+\section{Esperimento 1 - Variazione raggio dei candidati su CPU}
+
+In questa fase del nostro studio, procederemo a modificare il parametro \textbf{radiusMultiplier}  della funzione che raccoglie i \textbf{candidati} per poi eseguire la funzione \textbf{ComputeStereoMatches} (\ref{schema-generale-computeStereo}) su CPU. 
+
+L'obiettivo è analizzare l'impatto di queste variazioni sulle prestazioni complessive del sistema. Nello specifico, valuteremo i potenziali vantaggi e svantaggi derivanti da ciascuna modifica, sia in termini di \textbf{implicazioni temporali} e in termini di \textbf{precisione}.
+
+Qualora si riscontrino significativi aumenti nei tempi di elaborazione, considereremo l'opportunità di \textbf{ottimizzare il processo} mediante l'utilizzo di GPU. L'implementazione di soluzioni di calcolo parallelo su GPU potrebbe consentirci di mitigare gli effetti negativi osservati, sfruttando la capacità di elaborazione massiccia di queste unità hardware.
+
+Il fine ultimo di questa analisi è individuare una configurazione ottimale che bilanci efficacemente la qualità dei risultati e l'efficienza computazionale. Attraverso questa metodologia di sperimentazione e ottimizzazione, miriamo a sviluppare \textbf{una versione migliorata del sistema}, che rappresenti un avanzamento significativo rispetto all'implementazione originale.
+
+\vspace{1cm}
+
+CODE : Codice relativo all'inserimento dei candidati
+\begin{lstlisting}
+for(int iR=0; iR<Nr; iR++){
+    const cv::KeyPoint &kp = mvKeysRight[iR];
+    const float &kpY = kp.pt.y;
+    // Variabile modifica per esperimento
+    const float radiusMultiplier = 2.0 
+    const float r = radiusMultiplier *mvScaleFactors[mvKeysRight[iR].octave];  
+    const int maxr = ceil(kpY+r);
+    const int minr = floor(kpY-r);
+    // Inserimento candidati nell'intorno del raggio
+    for(int yi=minr;yi<=maxr;yi++){
+        vRowIndices[yi].push_back(iR);
+        size_refer[yi]++;   
+    }
+}
+\end{lstlisting}
+
+\vspace{4cm}
+
+\subsection{Analisi dell'Impatto del parametro Radius: Risultati e Limiti}
+
+L'esperimento condotto per valutare l'influenza del parametro 'radius' sulle prestazioni del sistema ORB-SLAM 3 ha portato a risultati che possiamo considerare positivi, soprattutto in termini di \textit{miglioramento della precisione}.
+
+Le variazioni del valore del raggio in aumento, hanno prodotto dei miglioramenti termini di precisione per il valore ATE(m).
+
+\begin{itemize}
+    \item \textit{Kitti04 / Kitti07} : Miglioramento precisione ATE per un moltiplicatore di raggio pari a \textbf{16}.
+    \item \textit{Kitti06} : Miglioramento precisione ATE per un moltiplicatore di raggio pari a \textbf{4}.
+\end{itemize}
+
+l'\textbf{ATE} (Absolute Trajectory Error) è una misura utilizzata per valutare la precisione della traiettoria stimata dal sistema di SLAM rispetto alla traiettoria di riferimento (ground truth).
+
+Si osserva inoltre che i tempi nella parte di \textbf{Stereo Matching} mostrano un aumento significativo, con incrementi che arrivano fino al 100\%. Si può prevedere che questo problema diventi trascurabile con la parallelizzazione dell'algoritmo. L'aumento dei tempi di elaborazione, infatti, potrà essere mitigato sfruttando l'elaborazione parallela, consentendo di distribuire il carico computazionale e ridurre significativamente i tempi complessivi.
+
+
 
 \begin{table}[h]
+    \centering
+    \caption{Esperimenti variazione raggio (KITTY DATASET - 04) }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
+        \midrule
+        %%%
+        Translation error & 0.47 & \cellcolor{green!20}0.46 & \cellcolor{green!20}0.46 & 0.47 & 0.47 \\
+        %%%
+        Rotational error  & \cellcolor{green!20}0.07 & 0.08 & 0.09 & \cellcolor{green!20}0.07 & \cellcolor{green!20}0.07 \\
+        %%%
+        ATE (m)           & 0.73 & 0.77 & 0.75 & 0.78 & \cellcolor{green!20}0.71 \\
+        %%%
+        RPE (m)           & \cellcolor{green!20}0.017 & \cellcolor{green!20}0.017 & \cellcolor{green!20}0.017 & \cellcolor{green!20}0.017 & \cellcolor{green!20}0.017 \\
+        %%%
+        RPE (deg)         & 0.031 & 0.032 & 0.031 & \cellcolor{green!20}0.030 & \cellcolor{green!20}0.030 \\
+        %%%
+        ORB Extraction (ms) & 9.1419 & \cellcolor{green!20}8.9207 & \cellcolor{green!20}8.9707 & 9.0029 & 8.9305 \\
+        %%%
+        Stereo Matching (ms) & \cellcolor{green!20}3.0216 & 3.391 & 3.962 & 4.8351 & 6.345 \\
+        %%%
+        ORB Extraction ($\sigma$) & 61.54 & \cellcolor{green!20}57.737 & 58.214 & 58.98 & 58.148 \\
+        %%%
+        Stereo Matching ($\sigma$) & \cellcolor{green!20}0.54303 & 0.63088 & 0.68821 & 0.74869 & 0.6854 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+
+\begin{table}[h]
+    \centering
+    \caption{Esperimenti variazione raggio (KITTY DATASET - 06) }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
+        \midrule
+        %%%
+        Translation error & 0.48 & 0.48 & \cellcolor{green!20}0.46 & 0.48 & 0.48 \\
+        %%%
+        Rotational error & \cellcolor{green!20}0.15 & 0.16 & \cellcolor{green!20}0.15 & 0.16 & \cellcolor{green!20}0.15 \\
+        %%%
+        ATE (m)           & 2.43 & 2.45 & \cellcolor{green!20}2.29 & 2.59 & 2.31 \\
+        %%%
+        RPE (m)           & \cellcolor{green!20}0.013 & \cellcolor{green!20}0.013 & 0.014 & 0.014 & 0.014 \\
+        %%%
+        RPE (deg)         & \cellcolor{green!20}0.031 & \cellcolor{green!20}0.031 & 0.032 & 0.032 & 0.032 \\
+        %%%
+        ORB Extraction (ms) & 6.0595 & 6.0632 & \cellcolor{green!20}6.0573 & 6.0988 & 6.1996 \\
+        %%%
+        Stereo Matching (ms) & 2.832 & 3.231 & 3.732 & 4.678 & 6.281 \\
+        %%%
+        ORB Extraction ($\sigma$) & 28.606 & \cellcolor{green!20}28.451 & 28.551 & 28.839 & 28.839 \\
+        %%%
+        Stereo Matching ($\sigma$) & \cellcolor{green!20}0.534 & 0.557 & 0.645 & 0.716 & 0.681 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\newpage
+\begin{table}[h]
+    \centering
+    \caption{Esperimenti variazione raggio (KITTY DATASET - 07) }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
+        \midrule
+        %%%
+        Translation error & 0.48 & \cellcolor{green!20}0.44 & 0.47 & 0.46 & 0.47 \\
+        %%%
+        Rotational error  & 0.24 & \cellcolor{green!20}0.23 & 0.25 & 0.26 & 0.26 \\
+        %%%
+        ATE (m)           & 0.52 & 0.49 & 0.5 & 0.54 & \cellcolor{green!20}0.46 \\
+        %%%
+        RPE (m)           & 0.014 & \cellcolor{green!20}0.013 & 0.014 & 0.014 & 0.014 \\
+        %%%
+        RPE (deg)         & 0.04 & \cellcolor{green!20}0.039 & 0.041 & 0.040 & 0.040 \\
+        %%%
+        ORB Extraction (ms) & 6.305 & 6.3717 & 6.356 & \cellcolor{green!20}6.280 & 6.679 \\
+        %%%
+        Stereo Matching (ms) & \cellcolor{green!20}3.087 & 3.573 & 4.072 & 4.896 & 6.679 \\
+        %%%
+        ORB Extraction ($\sigma$) & 29.31 & \cellcolor{green!20}28.58 & 29.45 & 28.65 & 29.87 \\
+        %%%
+        Stereo Matching ($\sigma$) & 0.535 & \cellcolor{green!20}0.526 & 0.642 & 0.689 & 0.688 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Nella sezione successiva analizzeremo i risultati ottenuti in termini di tempi di esecuzione a seguito della parallelizazione  dell'algoritmo. Questo potrebbe offrire miglioramenti significativi sia in termini di efficienza e permettere un miglioramento della precisione senza perdite di prestazioni.
+
+
+\newpage
+\section{Esperimento 2 - Variazione raggio dei candidati su GPU }
+
+In questo capitolo viene introdotto il secondo esperimento. L'obiettivo è quello di replicare l'analisi condotta nel primo, ma utilizzando l'algoritmo sviluppato specificamente per \textbf{GPU}. Questo ci permetterà di osservare eventuali miglioramenti a livello di tempo di esecuzione rispetto all'implementazione su \textbf{CPU}.
+
+\subsection{Analisi dell'ottimizazione eseguita su GPU : Risultati e Conclusioni}
+
+La parallelizzazione ha portato a un notevole incremento delle prestazioni in termini di tempo di esecuzione. Nello specifico, abbiamo osservato:
+\begin{itemize}
+\item Un incremento della velocità di esecuzione di oltre il \textbf{300\% }rispetto all'implementazione originale su CPU.
+\item Una stabilità nella \textbf{precisione dei dati}, l'accuratezza è rimasta pressochè invariata.
+\end{itemize}
+Questo significativo aumento di efficienza dimostra il potenziale della computazione parallela su GPU per questo tipo di algoritmi di ricerca intensiva.
+Di seguito sono presentati i risultati dell'esperimento, accompagnati da un'analisi comparativa con le prestazioni ottenute dalla corrispondente implementazione su \textbf{CPU}.
+
+\begin{table}[H]
     \centering
     \caption{Esperimenti variazione raggio (KITTY DATASET - 04) }
     \begin{tabular}{lcccccc}
@@ -971,7 +973,7 @@ __device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , i
 
 \vspace{1cm}
 
-\begin{table}[h]
+\begin{table}[H]
     \centering
     \caption{Esperimenti variazione raggio (KITTY DATASET - 06) }
     \begin{tabular}{lcccccc}
@@ -1007,7 +1009,7 @@ __device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , i
     \caption{Comparazione dei tempi sull'algoritmo di Stereo Matching }
 \end{figure}
 
-\begin{table}[h]
+\begin{table}[H]
     \centering
     \caption{Esperimenti variazione raggio (KITTY DATASET - 07) }
     \begin{tabular}{lcccccc}
@@ -1036,20 +1038,6 @@ __device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , i
         \bottomrule
     \end{tabular}
 \end{table}
-
-
-
-\newpage
-
-\subsubsection{Conclusioni}
-
-La parallelizzazione ha portato a un notevole incremento delle prestazioni in termini di tempo di esecuzione. Nello specifico, abbiamo osservato:
-\begin{itemize}
-\item Un incremento della velocità di esecuzione di oltre il \textbf{300\% }rispetto all'implementazione originale su CPU.
-\item Una stabilità nella \textbf{precisione dei dati}, l'accuratezza è rimasta pressochè invariata.
-\end{itemize}
-Questo significativo aumento di efficienza dimostra il potenziale della computazione parallela su GPU per questo tipo di algoritmi di ricerca intensiva.
-
 
 
 \subsubsection{Possibili ottimizazioni future}
