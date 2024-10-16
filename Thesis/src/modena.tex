@@ -72,7 +72,7 @@ Corso di Laurea in Informatica}}
 \par
 \noindent
 \begin{minipage}[t]{0.47\textwidth}
-{\large{\bf Relatore:\\Dott. Filippo Muzzin}} \\
+{\large{\bf Relatore:\\Dott. Filippo Muzzini}} \\
 {\large{\bf Corelatore:\\Prof. Nicola Capodieci}}
 \end{minipage}
 \hfill
@@ -473,17 +473,17 @@ Successivamente è stata eseguita una schematizzazione ed è stata analizzatata 
 
 Lo schema generale del funzionamento della funzione \texttt{ComputeStereoMatches()} è illustrato nell'immagine sottostante. Tale schema si compone di tre macro-funzioni principali e mostra il numero medio di iterazioni eseguite, permettendo di vedere il carico computazionale svolto.
 
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.8\linewidth]{img/ComputeStereo_schema.png}
-    \caption{Schematizzazione della funzione \textit{ComputeStereoMatches()} }
-\end{figure}
-
 \begin{enumerate}
     \item \textbf{Raccolta dei keypoints:} La prima funzione si occupa di selezionare, per ogni punto chiave(keypoint) dell'immagine destra, un intorno e di aggiungerlo a una struttura dati apposita, preparandolo per le fasi successive.
     \item \textbf{Selezione del miglior candidato:} La seconda funzione si concentra sulla ricerca del miglior candidato tra quelli selezionati nella fase precedente, valutando i vari intorni e scegliendo quello più adatto.
     \item \textbf{Filtraggio dei risultati:} La terza funzione applica filtri ai keypoints migliori, al fine di mantenere solo quelli che soddisfano determinati criteri di qualità, migliorando così la precisione complessiva del processo.
 \end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{img/ComputeStereo_schema.png}
+    \caption{Schematizzazione della funzione \textit{ComputeStereoMatches()} }
+\end{figure}
 
 \newpage
 \subsection{Schema della ricerca delle distanze minime} \label{ricerca-candidati}
@@ -492,7 +492,7 @@ Nell'illustrazione sottostante è possibile visionare la schematizzazione della 
 
 Ci sono due tipi di rappresentazioni. Quella ad \textbf{alta livello} che è astratta e non tiene conto delle strutture dati. Mentre la seconda si concentra sulle \textbf{strutture dati utilizzate} e \textbf{le iterazioni} eseguite per raggiungere il risultato atteso.
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.5\linewidth]{img/find_distance_high_scheme.png}
     \caption{Schematizzazione ad alto livello (CPU) }
@@ -958,13 +958,15 @@ Di seguito sono presentati i risultati dell'esperimento, accompagnati da un'anal
 
 \subsubsection{Risultati Laptop}
 
+%%% DATASET04 - LAPTOP
+
 \begin{table}[H]
     \centering
     \caption{Risultati globali (raggio default 2) (\textbf{KITTY DATASET - 04}) }
     \begin{tabular}{lcccccc}
         \toprule
         \rowcolor{gray!20}
-        Device & \cellcolor{blue!20}GPU & \cellcolor{orange!20}CPU  \\
+        Device(laptop) & \cellcolor{blue!20}CPU & \cellcolor{orange!20}GPU  \\
         \midrule
         %%%
         Translation error & \cellcolor{green!20}0.410 & 0.450  \\
@@ -990,21 +992,19 @@ Di seguito sono presentati i risultati dell'esperimento, accompagnati da un'anal
 
 \begin{table}[H]
     \centering
-    \caption{Risultati temporali (\textbf{KITTY DATASET - 04}) [laptop] }
+    \caption{Risultati temporali (\textbf{KITTY DATASET - 04}) [\textit{laptop}] }
     \begin{tabular}{lcccccc}
         \toprule
         \rowcolor{gray!20}
         Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
         %%%
-        Stereo Matching \textcolor{blue}{GPU} (ms) & 3.00 & 3.00 & 3.00 & 3.00 & 3.00 \\
+        Stereo Matching \textcolor{blue}{CPU} (ms) & 3.022 & 3.391 & 3.962 & 4.835 & 6.345 \\
         %%%
+        Stereo Matching \textcolor{orange}{GPU} (ms) & 0.829 & 0.973 & 1.300 & 1.938 & 3.218 \\
         %%%
-        Stereo Matching \textcolor{blue}{GPU} (ms) & 3.00 & 3.00 & 3.00 & 3.00 & 3.00 \\
+        Stereo Matching \textcolor{blue}{CPU} ($\sigma$) & 0.543 & 0.630 & 0.688 & 0.748 & 0.685\\
         %%%
-        %%%
-        Stereo Matching \textcolor{blue}{GPU} (ms) & 3.00 & 3.00 & 3.00 & 3.00 & 3.00 \\
-        %%%
-        Stereo Matching \textcolor{orange}{CPU} (ms) & 3.00 & 3.00 & 3.00 & 3.00 & 3.00\\
+        Stereo Matching \textcolor{orange}{GPU} ($\sigma$) & 0.099 & 0.129 & 0.196 & 0.272 & 0.353 \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -1015,14 +1015,16 @@ Di seguito sono presentati i risultati dell'esperimento, accompagnati da un'anal
     \caption{Comparazione dei tempi sull'algoritmo di Stereo Matching }
 \end{figure}
 
+%%% DATASET06 - LAPTOP
+
 \newpage
 \begin{table}[H]
     \centering
-    \caption{Risultati globali con raggio pari al valore di default 2 \newline(\textbf{KITTY DATASET - 06}) [laptop]}
+    \caption{Risultati globali (raggio default 2) (\textbf{KITTY DATASET - 06}) }
     \begin{tabular}{lcccccc}
         \toprule
         \rowcolor{gray!20}
-        Device & \cellcolor{blue!20}GPU & \cellcolor{orange!20}CPU  \\
+        Device(laptop) & \cellcolor{blue!20}CPU & \cellcolor{orange!20}GPU  \\
         \midrule
         %%%
         Translation error & \cellcolor{green!20}0.670 & 0.690  \\
@@ -1046,21 +1048,40 @@ Di seguito sono presentati i risultati dell'esperimento, accompagnati da un'anal
     \end{tabular}
 \end{table}
 
-\begin{figure}[H]
-    \centering
-    \fbox{\includegraphics[width=1\textwidth]{img/time_comparison_laptop_kitti06.png}}
-    \caption{Comparazione dei tempi sull'algoritmo di Stereo Matching }
-\end{figure}
-
-
-
 \begin{table}[H]
     \centering
-    \caption{Risultati globali con raggio pari al valore di default 2 \newline(\textbf{KITTY DATASET - 07}) [laptop] }
+    \caption{Risultati temporali (\textbf{KITTY DATASET - 06}) [\textit{laptop}] }
     \begin{tabular}{lcccccc}
         \toprule
         \rowcolor{gray!20}
-        Device & \cellcolor{blue!20}GPU & \cellcolor{orange!20}CPU  \\
+        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
+        %%%
+        Stereo Matching \textcolor{blue}{CPU} (ms) & 2.833 & 3.231 & 3.732 & 4.679 & 6.282 \\
+        %%%
+        Stereo Matching \textcolor{orange}{GPU} (ms) & 0.789 & 0.954 & 1.224 & 1.867 & 2.925 \\
+        %%%
+        Stereo Matching \textcolor{blue}{CPU} ($\sigma$) & 0.535 & 0.557 & 0.646 & 0.717 & 0.682\\
+        %%%
+        Stereo Matching \textcolor{orange}{GPU} ($\sigma$) & 0.085 & 0.117 & 0.166 & 0.243 & 0.261 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.8\textwidth]{img/time_comparison_laptop_kitti06.png}}
+    \caption{Comparazione dei tempi sull'algoritmo di Stereo Matching }
+\end{figure}
+
+%%% DATASET07 - LAPTOP
+
+\begin{table}[H]
+    \centering
+    \caption{Risultati globali (raggio default 2) (\textbf{KITTY DATASET - 07}) }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Device & \cellcolor{blue!20}CPU & \cellcolor{orange!20}GPU  \\
         \midrule
         %%%
         Translation error & 0.540 & \cellcolor{green!20}0.480  \\
@@ -1084,13 +1105,55 @@ Di seguito sono presentati i risultati dell'esperimento, accompagnati da un'anal
     \end{tabular}
 \end{table}
 
+\begin{table}[H]
+    \centering
+    \caption{Risultati temporali (\textbf{KITTY DATASET - 07}) [\textit{laptop}] }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
+        %%%
+        Stereo Matching \textcolor{blue}{CPU} (ms) & 3.087 & 3.573 & 4.072 & 4.897 & 6.391 \\
+        %%%
+        Stereo Matching \textcolor{orange}{GPU} (ms) & 0.791 & 0.972 & 1.253 & 1.905 & 3.069 \\
+        %%%
+        Stereo Matching \textcolor{blue}{CPU} ($\sigma$) & 0.535 & 0.527 & 0.642 & 0.689 & 0.688\\
+        %%%
+        Stereo Matching \textcolor{orange}{GPU} ($\sigma$) & 0.091 & 0.127 & 0.161 & 0.307 & 0.404 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
 \begin{figure}[H]
     \centering
     \fbox{\includegraphics[width=1\textwidth]{img/time_comparison_laptop_kitti07.png}}
     \caption{Comparazione dei tempi sull'algoritmo di Stereo Matching }
 \end{figure}
 
+
 \subsubsection{Risultati Board}
+
+%%% DATASET04 - BOARD
+
+\vspace{1cm}
+\begin{table}[H]
+    \centering
+    \caption{Risultati temporali (\textbf{KITTY DATASET - 04}) [\textit{board}] }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
+        %%%
+        Stereo Matching \textcolor{blue}{CPU} (ms) & 7.722 & 9.699 & 11.033 & 14.511 & 20.841\\
+        %%%
+        Stereo Matching \textcolor{orange}{GPU} (ms) & 2.046 & 2.309 & 2.381 & 3.238 & 4.347 \\
+        %%%
+        Stereo Matching \textcolor{blue}{CPU} ($\sigma$) & 0.711 & 1.343 & 0.896 & 1.325 & 1.742\\
+        %%%
+        Stereo Matching \textcolor{orange}{GPU} ($\sigma$) & 0.241 & 0.340 & 0.506 & 0.629 & 0.681 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \begin{figure}[H]
     \centering
@@ -1098,11 +1161,55 @@ Di seguito sono presentati i risultati dell'esperimento, accompagnati da un'anal
     \caption{Comparazione dei tempi sull'algoritmo di Stereo Matching }
 \end{figure}
 
+%%% DATASET06 - BOARD
+
+\newpage
+\begin{table}[H]
+    \centering
+    \caption{Risultati temporali (\textbf{KITTY DATASET - 06}) [\textit{board}] }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
+        %%%
+        Stereo Matching \textcolor{blue}{CPU} (ms) & 7.275 & 8.454 & 10.920 & 13.454 & 19.630\\
+        %%%
+        Stereo Matching \textcolor{orange}{GPU} (ms) & 1.928 & 2.139 & 2.216 & 3.037 & 4.117 \\
+        %%%
+        Stereo Matching \textcolor{blue}{CPU} ($\sigma$) & 0.771 & 1.005 & 1.106 & 1.023 & 1.432\\
+        %%%
+        Stereo Matching \textcolor{orange}{GPU} ($\sigma$) & 0.212 & 0.273 & 0.311 & 0.598 & 0.770 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
 \begin{figure}[H]
     \centering
     \fbox{\includegraphics[width=1\textwidth]{img/time_comparison_board_kitti06.png}}
     \caption{Comparazione dei tempi sull'algoritmo di Stereo Matching }
 \end{figure}
+
+%%% DATASET07 - BOARD
+
+\newpage
+\begin{table}[H]
+    \centering
+    \caption{Risultati temporali (\textbf{KITTY DATASET - 07}) [\textit{board}] }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
+        %%%
+        Stereo Matching \textcolor{blue}{CPU} (ms) & 7.706 & 8.906 & 11.149 & 14.446 & 20.450\\
+        %%%
+        Stereo Matching \textcolor{orange}{GPU} (ms) & 1.905 & 2.099 & 2.206 & 2.740 & 3.479 \\
+        %%%
+        Stereo Matching \textcolor{blue}{CPU} ($\sigma$) & 0.758 & 0.749 & 0.954 & 1.096 & 1.504\\
+        %%%
+        Stereo Matching \textcolor{orange}{GPU} ($\sigma$) & 0.143 & 0.190 & 0.277 & 0.616 & 0.703 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \begin{figure}[H]
     \centering
@@ -1112,7 +1219,11 @@ Di seguito sono presentati i risultati dell'esperimento, accompagnati da un'anal
 
 
 
-\subsubsection{Possibili ottimizazioni future}
+\chapter{Conclusioni}
+
+L'ottimizzazione dell'algoritmo di Stereo Matching di ORB-SLAM3 tramite l'utilizzo della GPU rappresenta un passo significativo verso l'implementazione di sistemi SLAM più efficienti e adatti all'uso in tempo reale. Il miglioramento delle prestazioni ottenuto dimostra il potenziale del calcolo parallelo nel campo della visione artificiale e della robotica.
+
+La flessibilità offerta dalla possibilità di regolare il raggio di ricerca apre nuove strade per l'adattamento del sistema a diverse condizioni operative, permettendo di trovare il giusto equilibrio tra velocità di elaborazione e precisione della localizzazione e mappatura.
 
 Il notevole guadagno in termini di prestazioni offre l'opportunità di aumentare la complessità computazionale in futuro. Questo potrebbe permettere di ottenere risultati ancora più precisi senza compromettere le prestazioni complessive del sistema in termini di \textit{precisione} e \textit{tempo}. Ad esempio:
 \begin{itemize}
@@ -1121,11 +1232,7 @@ Il notevole guadagno in termini di prestazioni offre l'opportunità di aumentare
 \item Potremmo estendere l'analisi a più frame o a risoluzioni di immagine più elevate.
 \end{itemize}
 
-
-
-\chapter{Conclusioni}
-
-// WRITE YOUR CONCLUSION...
+In conclusione, questo lavoro ha dimostrato il potenziale dell'utilizzo delle GPU per migliorare le prestazioni di ORB-SLAM3, aprendo la strada a implementazioni più efficienti di sistemi SLAM in applicazioni che richiedono elaborazione in tempo reale.
 
 
 \bibliographystyle{apalike}
