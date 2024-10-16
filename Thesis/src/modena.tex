@@ -750,7 +750,8 @@ Il programma di valutazione è disponibile pubblicamente e può essere accessibi
 
 \subsection{Ambiente Hardware e Software}
 
-Gli esperimenti sono stati condotti su un sistema con le seguenti specifiche tecniche:
+Gli esperimenti sono stati condotti su due diversi dispositivi.
+Il primo dispositivo è un \textbf{laptop} con le con le seguenti specifiche tecniche:
 
 \begin{itemize}
     \item CPU: 12th Gen Intel(R) Core(TM) i7-1280P
@@ -761,6 +762,19 @@ Gli esperimenti sono stati condotti su un sistema con le seguenti specifiche tec
     \item CUDA Driver Version: 535.183.01  
     \item CUDA Version: 12.2
 \end{itemize}
+
+\vspace{1cm}
+
+Il secondo dispositivo è una \textbf{board} detta anche \textbf{modulo}.
+Il sito ufficiale di \textit{NVIDIA} definisce che "\textit{la gamma di moduli Jetson Xavier™ include i primi computer del mondo progettati appositamente per le macchine autonome, con prestazioni IA fino a 32 TOPS che li rendono ideali per gestire l'odometria grafica, la fusione di sensori, la localizzazione e la mappatura, il rilevamento di ostacoli e gli algoritmi di pianificazione dei percorsi fondamentali per i robot di nuova generazione}" \cite{board-series}
+
+La \textcolor{orange}{specifiche tecniche} della board utilizzata sono quelle evidenziate in arancione e si riferiscono al modello \textbf{Nvidia Jetson Xavier AGX 32GB}:
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=1\textwidth]{img/specifiche_tecniche_board.png}}
+    \caption{Nvidia Jetson Xavier AGX 32GB \cite{board-specific}}
+\end{figure}
 
 \subsection{Procedura Sperimentale}
 
@@ -833,7 +847,7 @@ Si osserva inoltre che i tempi nella parte di \textbf{Stereo Matching} mostrano 
 
 \begin{table}[h]
     \centering
-    \caption{Esperimenti variazione raggio (KITTY DATASET - 04) }
+    \caption{Esperimenti variazione raggio (KITTY DATASET - 04) [laptop] }
     \begin{tabular}{lcccccc}
         \toprule
         \rowcolor{gray!20}
@@ -864,7 +878,7 @@ Si osserva inoltre che i tempi nella parte di \textbf{Stereo Matching} mostrano 
 
 \begin{table}[h]
     \centering
-    \caption{Esperimenti variazione raggio (KITTY DATASET - 06) }
+    \caption{Esperimenti variazione raggio (KITTY DATASET - 06) [laptop] }
     \begin{tabular}{lcccccc}
         \toprule
         \rowcolor{gray!20}
@@ -895,7 +909,7 @@ Si osserva inoltre che i tempi nella parte di \textbf{Stereo Matching} mostrano 
 \newpage
 \begin{table}[h]
     \centering
-    \caption{Esperimenti variazione raggio (KITTY DATASET - 07) }
+    \caption{Esperimenti variazione raggio (KITTY DATASET - 07) [laptop] }
     \begin{tabular}{lcccccc}
         \toprule
         \rowcolor{gray!20}
@@ -935,15 +949,18 @@ In questo capitolo viene introdotto il secondo esperimento. L'obiettivo è quell
 
 La parallelizzazione ha portato a un notevole incremento delle prestazioni in termini di tempo di esecuzione. Nello specifico, abbiamo osservato:
 \begin{itemize}
-\item Un incremento della velocità di esecuzione di oltre il \textbf{300\% }rispetto all'implementazione originale su CPU.
+\item Un incremento della velocità di esecuzione di oltre il \textbf{300\% }rispetto all'implementazione originale su CPU eseguendolo sul \textit{laptop}.
+\item Un incremento della velocità di esecuzione di oltre il \textbf{400\% }rispetto all'implementazione originale su CPU eseguendolo sulla \textit{board}.
 \item Una stabilità nella \textbf{precisione dei dati}, l'accuratezza è rimasta pressochè invariata.
 \end{itemize}
 Questo significativo aumento di efficienza dimostra il potenziale della computazione parallela su GPU per questo tipo di algoritmi di ricerca intensiva.
-Di seguito sono presentati i risultati dell'esperimento, accompagnati da un'analisi comparativa con le prestazioni ottenute dalla corrispondente implementazione su \textbf{CPU}.
+Di seguito sono presentati i risultati dell'esperimento, accompagnati da un'analisi comparativa delle prestazioni su \textbf{CPU}.
+
+\subsubsection{Risultati Laptop}
 
 \begin{table}[H]
     \centering
-    \caption{Esperimenti variazione raggio (KITTY DATASET - 04) }
+    \caption{Risultati globali (raggio default 2) (\textbf{KITTY DATASET - 04}) }
     \begin{tabular}{lcccccc}
         \toprule
         \rowcolor{gray!20}
@@ -971,11 +988,37 @@ Di seguito sono presentati i risultati dell'esperimento, accompagnati da un'anal
     \end{tabular}
 \end{table}
 
-\vspace{1cm}
-
 \begin{table}[H]
     \centering
-    \caption{Esperimenti variazione raggio (KITTY DATASET - 06) }
+    \caption{Risultati temporali (\textbf{KITTY DATASET - 04}) [laptop] }
+    \begin{tabular}{lcccccc}
+        \toprule
+        \rowcolor{gray!20}
+        Radius multiplier & 1.0 & \cellcolor{orange!40}2.0 & 4.0 & 8.0 & 16.0 \\
+        %%%
+        Stereo Matching \textcolor{blue}{GPU} (ms) & 3.00 & 3.00 & 3.00 & 3.00 & 3.00 \\
+        %%%
+        %%%
+        Stereo Matching \textcolor{blue}{GPU} (ms) & 3.00 & 3.00 & 3.00 & 3.00 & 3.00 \\
+        %%%
+        %%%
+        Stereo Matching \textcolor{blue}{GPU} (ms) & 3.00 & 3.00 & 3.00 & 3.00 & 3.00 \\
+        %%%
+        Stereo Matching \textcolor{orange}{CPU} (ms) & 3.00 & 3.00 & 3.00 & 3.00 & 3.00\\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.8\textwidth]{img/time_comparison_laptop_kitti04.png}}
+    \caption{Comparazione dei tempi sull'algoritmo di Stereo Matching }
+\end{figure}
+
+\newpage
+\begin{table}[H]
+    \centering
+    \caption{Risultati globali con raggio pari al valore di default 2 \newline(\textbf{KITTY DATASET - 06}) [laptop]}
     \begin{tabular}{lcccccc}
         \toprule
         \rowcolor{gray!20}
@@ -1005,13 +1048,15 @@ Di seguito sono presentati i risultati dell'esperimento, accompagnati da un'anal
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=1\textwidth]{img/time_comparison1_kitti06.png}}
+    \fbox{\includegraphics[width=1\textwidth]{img/time_comparison_laptop_kitti06.png}}
     \caption{Comparazione dei tempi sull'algoritmo di Stereo Matching }
 \end{figure}
 
+
+
 \begin{table}[H]
     \centering
-    \caption{Esperimenti variazione raggio (KITTY DATASET - 07) }
+    \caption{Risultati globali con raggio pari al valore di default 2 \newline(\textbf{KITTY DATASET - 07}) [laptop] }
     \begin{tabular}{lcccccc}
         \toprule
         \rowcolor{gray!20}
@@ -1038,6 +1083,33 @@ Di seguito sono presentati i risultati dell'esperimento, accompagnati da un'anal
         \bottomrule
     \end{tabular}
 \end{table}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=1\textwidth]{img/time_comparison_laptop_kitti07.png}}
+    \caption{Comparazione dei tempi sull'algoritmo di Stereo Matching }
+\end{figure}
+
+\subsubsection{Risultati Board}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=1\textwidth]{img/time_comparison_board_kitti04.png}}
+    \caption{Comparazione dei tempi sull'algoritmo di Stereo Matching }
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=1\textwidth]{img/time_comparison_board_kitti06.png}}
+    \caption{Comparazione dei tempi sull'algoritmo di Stereo Matching }
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=1\textwidth]{img/time_comparison_board_kitti07.png}}
+    \caption{Comparazione dei tempi sull'algoritmo di Stereo Matching }
+\end{figure}
+
 
 
 \subsubsection{Possibili ottimizazioni future}
