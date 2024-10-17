@@ -366,7 +366,7 @@ ORB-SLAM divide il processo in tre thread principali: \textbf{tracking} (traccia
 
 
 
-\chapter{Analisi e implementazione della ricerca}
+\chapter{Analisi e implementazione delle ottimizzazioni}
 
 \section{Introduzione}
 
@@ -381,103 +381,6 @@ L'obiettivo di questo capitolo è ottimizzare un algoritmo di \textbf{Stereo Mat
 
 Per raggiungere questo obiettivo, il linguaggio di programmazione CUDA verrà utilizzato per implementare soluzioni che consentano di sfruttare le capacità di calcolo parallelo delle GPU, al fine di ridurre il tempo di elaborazione dell'algoritmo e migliorare le prestazioni complessive.
 Nelle seguenti sezioni verrano mostrati i passaggi per la realizzazione del progetto.
-
-
-\section{Installazione del sistema operativo}
-
-Il sistema operativo scelto per il progetto è \textbf{Linux Mint 21.3}, è una distribuzione basata su \textit{Ubuntu} che offre un ambiente desktop intuitivo e facile da usare. Tra i vantaggi principali di Linux Mint e di Linux in generale troviamo la stabilità, la flessibilità, e una comunità di supporto attiva. \textit{Linux Mint}, in particolare, offre un'interfaccia utente simile a \textit{Windows}, rendendo la transizione semplice per gli utenti che non hanno familiarità con altri sistemi Linux.
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.2\linewidth]{img/mint_logo.png}
-    \caption{Linux Mint - Logo}
-\end{figure}
-
-Di seguito sono elencati i passaggi principali per l'installazione del sistema operativo:
-
-\begin{enumerate}
-    \item \textbf{Scaricare la distribuzione:} La distribuzione di Linux Mint 21.3 può essere scaricata direttamente dal sito ufficiale: \url{https://linuxmint.com/download.php}.
-    \item \textbf{Creare una chiavetta USB avviabile:} Per scrivere l'immagine del sistema operativo su una chiavetta USB, è stato utilizzato un software come \textit{Rufus}. La chiavetta è stata preparata con una partizione di tipo GPT e con il file system NTFS per garantire la compatibilità.
-    \item \textbf{Installazione in dual-boot:} L'installazione è stata effettuata in modalità \textit{dual-boot}, permettendo così di mantenere il sistema operativo preesistente insieme a Linux Mint. Il dual-boot è una configurazione che consente di scegliere quale sistema operativo avviare all'accensione del computer, garantendo la massima flessibilità nell'uso del dispositivo.
-    \item \textbf{Modifica dell'ordine di boot:} Dopo aver creato la chiavetta USB, è stato necessario modificare l'ordine di avvio (boot) dal \textbf{BIOS/UEFI }del computer, per poi procedere con l'installazione definitiva di \textit{Linux Mint}.
-\end{enumerate}
-
-
-\section{Installazione ed avvio di ORB-SLAM 3}
-
-In questo capitolo verrà descritta l'installazione e l'avvio del sistema ORB-SLAM3, uno dei più avanzati algoritmi di localizzazione e mappatura simultanea (SLAM). Verranno spiegati i passaggi principali necessari per configurare correttamente l'ambiente, installare le dipendenze e avviare ORB-SLAM3. L'obiettivo è fornire una guida dettagliata che permetta di eseguire l'algoritmo su un sistema basato su Linux, evidenziando eventuali problematiche comuni e come risolverle.
-
-\subsection{Installazione del CUDA Toolkit}
-
-Per poter sviluppare applicazioni con CUDA, è necessario installare il CUDA Toolkit, disponibile direttamente dal sito di NVIDIA. Questo toolkit contiene tutti gli strumenti necessari per la compilazione e l'esecuzione di codice parallelo su GPU, inclusi compilatori, librerie e campioni di codice. I passaggi principali necessari sono i seguenti e sono presi dal seguente tutorial \url{https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html}
-
-\begin{itemize}
-    \item 1. Controllare la versione di CUDA con il comando \textbf{nvidia-smi}
-    \item 2. Scaricare la versione di CUDA corrispondente alla versione restituita dal comando precedente. Example: 
-    \begin{verbatim}
-    Driver Version: 535.171.04   CUDA Version: 12.2
-    \end{verbatim}
-    
-    \item 3. Aprire il file .bashrc e inserire il seguente comando:
-    \begin{verbatim}
-    export PATH=/usr/local/cuda-{version}/bin/:$PATH
-    \end{verbatim}
-\end{itemize}
-
-\subsection{Ottenimento del Kitty Data Set}
-
-Il \textbf{KITTI dataset} è un insieme di dati ampiamente utilizzato nella ricerca su visione artificiale e guida autonoma. È composto da immagini, informazioni di navigazione (GPS/IMU), e dati LiDAR raccolti da veicoli in ambienti urbani, utilizzato per allenare e valutare algoritmi come rilevamento di oggetti, segmentazione semantica, e SLAM (Simultaneous Localization and Mapping).
-
-Per installarlo è sufficiente loggarsi sul sito \url{https://www.cvlibs.net/datasets/kitti/eval_odometry.php} e scaricare il pacchetto \textit{odometry data set (grayscale, 22 GB)}
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.9\linewidth]{img/kitti_dataset.png}
-    \caption{Indicazione pacchetto da scaricare}
-\end{figure}
-
-\subsection{Installazione definitiva di ORB-SLAM3}
-
-Per avvicinarci all'installazione finale di ORB-SLAM3 parallelo prima scarichiamo la versione non ottimizata, a seguire i passaggi descritti di seguito.
-
-\begin{enumerate}
-    \item \textbf{Clonare il repository:} Per prima cosa, clonare il repository di ORB-SLAM3 dal seguente URL: \url{https://github.com/UZ-SLAMLab/ORB_SLAM3}. Utilizzare il seguente comando nel terminale:
-
-    \begin{verbatim}
-    git clone https://github.com/UZ-SLAMLab/ORB_SLAM3.git
-    \end{verbatim}
-
-    \item \textbf{Eseguire la build:} Dopo aver clonato il repository, entrare nella directory di ORB-SLAM3 ed eseguire il processo di build con i comandi seguenti:
-
-    \begin{verbatim}
-    cd ORB_SLAM3
-    chmod +x build.sh
-    ./build.sh
-    \end{verbatim}
-
-    \item \textbf{Eseguire ORB-SLAM3:} Una volta completata la build, è possibile avviare ORB-SLAM3 con il comando seguente. Entrare nella directory principale di ORB-SLAM3 e utilizzare il comando:
-
-    \noindent
-    \begin{verbatim}
-    
-    ./Examples/Stereo/stereo_kitti Vocabulary/ORBvoc.txt 
-    Examples/Stereo/KITTIX.yaml ~/Desktop/dataset/sequences/00
-    \end{verbatim}
-
-    Questo comando avvierà ORB-SLAM3 utilizzando il KITTI dataset per la modalità stereo.
-    In base alla sequenza che andremo ad utilizzare bisogna cambiare \textbf{KITTIX.yaml} : 
-    \begin{itemize}
-        \item  KITTI00-02.yaml → sequenze 00,01,02.
-        \item KITTY03.yaml → sequenze 03.
-        \item KITTY04-12.yaml → sequenze 04,05,06,07,08,09,10,11,12.
-    \end{itemize}
-\end{enumerate}
-
-\newline
-
-Una volta che si è riusciti ad avviare la versione sopra citata, è possibile a passare alla versione parallela.
-Infatti la versione attualmente in esecuzione, non è quella citata all'inizio del capitolo, questo perchè non contiene la parte di \textit{Estrazione ORB} parallelizata.
-Per fare in modo di eseguire la versione in parallelo è necessario seguire i medesimi step con il seguente repository: \url{https://git.hipert.unimore.it/fmuzzini/cuda-accelerated-orb-slam}
 
 \section{Analisi delle possibili funzioni da ottimizare}
 
@@ -1253,6 +1156,106 @@ Il notevole guadagno in termini di prestazioni offre l'opportunità di aumentare
 
 In conclusione, questo lavoro ha dimostrato il potenziale dell'utilizzo delle GPU per migliorare le prestazioni di ORB-SLAM3, aprendo la strada a implementazioni più efficienti di sistemi SLAM in applicazioni che richiedono elaborazione in tempo reale.
 
+
+\appendix
+
+\chapter{Installazioni del software}
+
+\section{Installazione del sistema operativo}
+
+Il sistema operativo scelto per il progetto è \textbf{Linux Mint 21.3}, è una distribuzione basata su \textit{Ubuntu} che offre un ambiente desktop intuitivo e facile da usare. Tra i vantaggi principali di Linux Mint e di Linux in generale troviamo la stabilità, la flessibilità, e una comunità di supporto attiva. \textit{Linux Mint}, in particolare, offre un'interfaccia utente simile a \textit{Windows}, rendendo la transizione semplice per gli utenti che non hanno familiarità con altri sistemi Linux.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.2\linewidth]{img/mint_logo.png}
+    \caption{Linux Mint - Logo}
+\end{figure}
+
+Di seguito sono elencati i passaggi principali per l'installazione del sistema operativo:
+
+\begin{enumerate}
+    \item \textbf{Scaricare la distribuzione:} La distribuzione di Linux Mint 21.3 può essere scaricata direttamente dal sito ufficiale: \url{https://linuxmint.com/download.php}.
+    \item \textbf{Creare una chiavetta USB avviabile:} Per scrivere l'immagine del sistema operativo su una chiavetta USB, è stato utilizzato un software come \textit{Rufus}. La chiavetta è stata preparata con una partizione di tipo GPT e con il file system NTFS per garantire la compatibilità.
+    \item \textbf{Installazione in dual-boot:} L'installazione è stata effettuata in modalità \textit{dual-boot}, permettendo così di mantenere il sistema operativo preesistente insieme a Linux Mint. Il dual-boot è una configurazione che consente di scegliere quale sistema operativo avviare all'accensione del computer, garantendo la massima flessibilità nell'uso del dispositivo.
+    \item \textbf{Modifica dell'ordine di boot:} Dopo aver creato la chiavetta USB, è stato necessario modificare l'ordine di avvio (boot) dal \textbf{BIOS/UEFI }del computer, per poi procedere con l'installazione definitiva di \textit{Linux Mint}.
+\end{enumerate}
+
+
+\section{Installazione ed avvio di ORB-SLAM 3}
+
+In questo capitolo verrà descritta l'installazione e l'avvio del sistema ORB-SLAM3, uno dei più avanzati algoritmi di localizzazione e mappatura simultanea (SLAM). Verranno spiegati i passaggi principali necessari per configurare correttamente l'ambiente, installare le dipendenze e avviare ORB-SLAM3. L'obiettivo è fornire una guida dettagliata che permetta di eseguire l'algoritmo su un sistema basato su Linux, evidenziando eventuali problematiche comuni e come risolverle.
+
+\subsection{Installazione del CUDA Toolkit}
+
+Per poter sviluppare applicazioni con CUDA, è necessario installare il CUDA Toolkit, disponibile direttamente dal sito di NVIDIA. Questo toolkit contiene tutti gli strumenti necessari per la compilazione e l'esecuzione di codice parallelo su GPU, inclusi compilatori, librerie e campioni di codice. I passaggi principali necessari sono i seguenti e sono presi dal seguente tutorial \url{https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html}
+
+\begin{itemize}
+    \item 1. Controllare la versione di CUDA con il comando \textbf{nvidia-smi}
+    \item 2. Scaricare la versione di CUDA corrispondente alla versione restituita dal comando precedente. Example: 
+    \begin{verbatim}
+    Driver Version: 535.171.04   CUDA Version: 12.2
+    \end{verbatim}
+    
+    \item 3. Aprire il file .bashrc e inserire il seguente comando:
+    \begin{verbatim}
+    export PATH=/usr/local/cuda-{version}/bin/:$PATH
+    \end{verbatim}
+\end{itemize}
+
+\subsection{Ottenimento del Kitty Data Set}
+
+Il \textbf{KITTI dataset} è un insieme di dati ampiamente utilizzato nella ricerca su visione artificiale e guida autonoma. È composto da immagini, informazioni di navigazione (GPS/IMU), e dati LiDAR raccolti da veicoli in ambienti urbani, utilizzato per allenare e valutare algoritmi come rilevamento di oggetti, segmentazione semantica, e SLAM (Simultaneous Localization and Mapping).
+
+Per installarlo è sufficiente loggarsi sul sito \url{https://www.cvlibs.net/datasets/kitti/eval_odometry.php} e scaricare il pacchetto \textit{odometry data set (grayscale, 22 GB)}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\linewidth]{img/kitti_dataset.png}
+    \caption{Indicazione pacchetto da scaricare}
+\end{figure}
+
+\subsection{Installazione definitiva di ORB-SLAM3}
+
+Per avvicinarci all'installazione finale di ORB-SLAM3 parallelo prima scarichiamo la versione non ottimizata, a seguire i passaggi descritti di seguito.
+
+\begin{enumerate}
+    \item \textbf{Clonare il repository:} Per prima cosa, clonare il repository di ORB-SLAM3 dal seguente URL: \url{https://github.com/UZ-SLAMLab/ORB_SLAM3}. Utilizzare il seguente comando nel terminale:
+
+    \begin{verbatim}
+    git clone https://github.com/UZ-SLAMLab/ORB_SLAM3.git
+    \end{verbatim}
+
+    \item \textbf{Eseguire la build:} Dopo aver clonato il repository, entrare nella directory di ORB-SLAM3 ed eseguire il processo di build con i comandi seguenti:
+
+    \begin{verbatim}
+    cd ORB_SLAM3
+    chmod +x build.sh
+    ./build.sh
+    \end{verbatim}
+
+    \item \textbf{Eseguire ORB-SLAM3:} Una volta completata la build, è possibile avviare ORB-SLAM3 con il comando seguente. Entrare nella directory principale di ORB-SLAM3 e utilizzare il comando:
+
+    \noindent
+    \begin{verbatim}
+    
+    ./Examples/Stereo/stereo_kitti Vocabulary/ORBvoc.txt 
+    Examples/Stereo/KITTIX.yaml ~/Desktop/dataset/sequences/00
+    \end{verbatim}
+
+    Questo comando avvierà ORB-SLAM3 utilizzando il KITTI dataset per la modalità stereo.
+    In base alla sequenza che andremo ad utilizzare bisogna cambiare \textbf{KITTIX.yaml} : 
+    \begin{itemize}
+        \item  KITTI00-02.yaml → sequenze 00,01,02.
+        \item KITTY03.yaml → sequenze 03.
+        \item KITTY04-12.yaml → sequenze 04,05,06,07,08,09,10,11,12.
+    \end{itemize}
+\end{enumerate}
+
+\newline
+
+Una volta che si è riusciti ad avviare la versione sopra citata, è possibile a passare alla versione parallela.
+Infatti la versione attualmente in esecuzione, non è quella citata all'inizio del capitolo, questo perchè non contiene la parte di \textit{Estrazione ORB} parallelizata.
+Per fare in modo di eseguire la versione in parallelo è necessario seguire i medesimi step con il seguente repository: \url{https://git.hipert.unimore.it/fmuzzini/cuda-accelerated-orb-slam}
 
 \bibliographystyle{apalike}
 \bibliography{bibliografia}  % type -> @online,@misc,@unpublished,@thesis,@article,@book,...
