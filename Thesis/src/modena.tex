@@ -73,7 +73,7 @@ Corso di Laurea in Informatica}}
 \noindent
 \begin{minipage}[t]{0.47\textwidth}
 {\large{\bf Relatore:\\Dott. Filippo Muzzini}} \\
-{\large{\bf Corelatore:\\Prof. Nicola Capodieci}}
+{\large{\bf Correlatore:\\Prof. Nicola Capodieci}}
 \end{minipage}
 \hfill
 \begin{minipage}[t]{0.47\textwidth}\raggedleft
@@ -96,7 +96,7 @@ Questa tesi si propone di analizzare e implementare un percorso di ottimizzazion
 
 Gli algoritmi di \textbf{Stereo Matching} tipicamente richiedono un'intensa capacità di calcolo, soprattutto quando si cerca di ottenere risultati accurati su immagini ad alta risoluzione. L’obiettivo principale di questa tesi è ottimizzare l'esecuzione di uno di questi algoritmi sfruttando le caratteristiche dell'elaborazione parallela offerta dalle GPU tramite CUDA. La scelta di utilizzare \textbf{CUDA} è motivata dalla sua capacità di distribuire il carico computazionale su un numero elevato di core, rendendo possibile l’elaborazione simultanea di grandi quantità di dati, e migliorando significativamente le prestazioni rispetto all'implementazione su \textbf{CPU tradizionali}.
 
-Nella trattazione verrà esaminato l'approccio usato per ottimizare l'algoritmo  , con un'attenzione particolare all'efficienza e alla precisione, e si approfondiranno i principi di ottimizzazione parallela, analizzando tecniche come la decomposizione del problema in thread e la gestione ottimale della memoria della \textbf{GPU}. La tesi illustrerà anche i vantaggi e le sfide nell'implementare un algoritmo di Stereo Matching su architettura parallela, discutendo sia gli aspetti teorici che quelli pratici, con test sperimentali che metteranno a confronto le performance dell'algoritmo ottimizzato rispetto a versioni non parallele o meno efficienti.
+Nella trattazione verrà esaminato l'approccio usato per ottimizare l'algoritmo, con un'attenzione particolare all'efficienza e alla precisione, e si approfondiranno i principi di ottimizzazione parallela, analizzando tecniche come la decomposizione del problema in thread e la gestione ottimale della memoria della \textbf{GPU}. La tesi illustrerà anche i vantaggi e le sfide nell'implementare un algoritmo di Stereo Matching su architettura parallela, discutendo sia gli aspetti teorici che quelli pratici, con test sperimentali che metteranno a confronto le performance dell'algoritmo ottimizzato rispetto a versioni non parallele o meno efficienti.
 
 
 
@@ -112,7 +112,7 @@ Inoltre, esistono altri linguaggi e API orientati alla programmazione parallela,
 
 \section{Differenza di architettura tra CPU e GPU}
 
-L'architettura della CPU e della GPU può essere confrontata in maniera sintetica. La CPU è progettata per ridurre la latenza, ossia cerca di ottenere i risultati delle operazioni nel minor tempo possibile. Per fare questo, dispone di \textbf{cache L1} di grandi dimensioni, che aiutano a ridurre la latenza media dei dati, e utilizza poche unità logiche aritmetiche ad alte prestazioni per calcolare velocemente i risultati. I modelli moderni di CPU sfruttano anche il parallelismo a livello di istruzione, elaborando in anticipo risultati parziali per ridurre ulteriormente i tempi di attesa. Al contrario, l'architettura della GPU è orientata al \textbf{throughput}, ovvero al volume di operazioni elaborate simultaneamente. Poiché contiene un numero elevato di processori paralleli, non può dotarli di cache L1 grandi come quelle delle CPU. Di conseguenza, gli accessi alla memoria sono più lenti, causando maggiori latenze. Tuttavia, quando la GPU esegue molti più thread rispetto ai suoi core fisici (situazione chiamata “\textit{over-subscription}”), riesce a nascondere queste latenze passando rapidamente l'esecuzione da un thread all'altro.
+L'architettura della CPU e della GPU può essere confrontata in maniera sintetica. La CPU è progettata per ridurre la latenza, ossia cerca di ottenere i risultati delle operazioni nel minor tempo possibile. Per fare questo, dispone di \textbf{cache L1} di grandi dimensioni, che aiutano a ridurre la latenza media di accesso ai dati, e utilizza poche unità logiche aritmetiche ad alte prestazioni per calcolare velocemente i risultati. I modelli moderni di CPU sfruttano anche il parallelismo a livello di istruzione, elaborando in anticipo risultati parziali per ridurre ulteriormente i tempi di attesa. Al contrario, l'architettura della GPU è orientata al \textbf{throughput}, ovvero al volume di operazioni elaborate simultaneamente. Poiché contiene un numero elevato di processori paralleli, non può dotarli di cache L1 grandi come quelle delle CPU. Di conseguenza, gli accessi alla memoria sono più lenti, causando maggiori latenze. Tuttavia, quando la GPU esegue molti più thread rispetto ai suoi core fisici (situazione chiamata “\textit{over-subscription}”), riesce a nascondere queste latenze passando rapidamente l'esecuzione da un thread all'altro.
 
 
 \begin{figure}[h]
@@ -148,40 +148,6 @@ Nel modello di esecuzione di CUDA esistono due tipi di funzioni principali:
     \includegraphics[width=1\linewidth]{img/basic_kernel.png}
     \caption{Kernel di base (1 blocco, 12 thread) \cite{CUDAtutorial}}
 \end{figure}
-
-\section{Sincronizzazione}
-
-Di base, CUDA presume che, se una funzione può dipendere da un'altra, tale dipendenza sarà garantita. Pertanto, CUDA gestisce la sincronizzazione tra le diverse funzioni per assicurare che vengano eseguite nell'ordine corretto.
-Ecco alcuni esempi:
-
-\begin{itemize}
-    \item Il kernel B è successivo al kernel A. Allora il kernel B aspetterà che il primo kernel abbia finito l'esecuzione.
-    \item Se stiamo scrivendo i dati sulla GPU il compilatore aspetterà a lanciare la funzione di tipo \texttt{\_\_kernel\_\_}.
-    \item Se vogliamo scrivere i dati dalla GPU \(\rightarrow\) CPU il compilatore aspetterà che la funzione di tipo \texttt{\_\_kernel\_\_} sia terminata.
-\end{itemize}
-
-\vspace{8mm}
-\hrule
-\vspace{3mm}
-
-È possibile ovviamente sincronizzare manualmente l'esecuzione in un programma CUDA, in modo tale da controllare l'ordine di esecuzione tra kernel, thread o tra operazioni tra CPU e GPU.  I principali metodi di sincronizzazione sono i seguenti:
-
-\begin{itemize}
-    \item \textbf{Sincronizzazione tra Host e Device:}
-    \begin{itemize}
-        \item \texttt{cudaDeviceSynchronize()}: Questa funzione viene chiamata dalla CPU per aspettare che tutte le operazioni precedenti lanciate sulla GPU siano completate. Viene utilizzata per assicurarsi che il kernel abbia terminato l'esecuzione prima di continuare con altre operazioni sul codice host.
-    \end{itemize}
-    
-    \item \textbf{Sincronizzazione tra Thread di un Kernel:}
-    \begin{itemize}
-        \item \texttt{\_\_syncthreads()}: Questa funzione viene chiamata all'interno di un kernel e sincronizza tutti i thread all'interno di un blocco. Ogni thread deve raggiungere il punto in cui è presente \texttt{\_\_syncthreads()} prima di poter proseguire, ed è utile quando c'è bisogno che tutti i thread completino un’operazione comune prima di procedere ulteriormente. Va notato che \texttt{\_\_syncthreads()} funziona solo all'interno di un singolo blocco di thread, non tra diversi blocchi.
-    \end{itemize}
-    
-    \item \textbf{Stream e Eventi per Sincronizzazione Personalizzata:}
-    \begin{itemize}
-        \item CUDA supporta l'uso di stream e eventi per una sincronizzazione più avanzata. Gli stream permettono di lanciare kernel in modo asincrono e indipendente tra loro, mentre gli eventi vengono utilizzati per sincronizzare l'esecuzione tra diversi stream o per misurare il tempo di esecuzione tra operazioni.
-    \end{itemize}
-\end{itemize}
 
 \section{Gerarchia di esecuzione di CUDA}
 
@@ -228,6 +194,39 @@ I block sono organizzati in una \textit{grid}. Una grid è una collezione di blo
 Un concetto fondamentale nella gerarchia di esecuzione di CUDA è il \textit{warp}. Un warp è un insieme di \textbf{32 thread} che vengono eseguiti in parallelo all'interno di un singolo block. La GPU esegue i thread in gruppi di warp, e tutti i thread di un warp seguono lo stesso percorso di esecuzione (flusso di controllo), il che significa che i thread all'interno di un warp sono soggetti a esecuzione sincrona. Se i thread di un warp prendono percorsi diversi (ad esempio in caso di branch divergenti), la GPU eseguirà i percorsi separatamente, riducendo l'efficienza.
 
 
+\section{Sincronizzazione}
+
+Di base, CUDA presume che, se una funzione può dipendere da un'altra, tale dipendenza sarà garantita. Pertanto, CUDA gestisce la sincronizzazione tra le diverse funzioni per assicurare che vengano eseguite nell'ordine corretto.
+Ecco alcuni esempi:
+
+\begin{itemize}
+    \item Il kernel B è successivo al kernel A. Allora il kernel B aspetterà che il primo kernel abbia finito l'esecuzione.
+    \item Se stiamo scrivendo i dati sulla GPU il driver aspetterà ad eseguire la funzione mettendola in coda.
+    \item Se vogliamo scrivere i dati dalla GPU \(\rightarrow\) CPU il driver aspetterà che la funzione in esecuzione nella GPU sia terminata.
+\end{itemize}
+
+\vspace{8mm}
+\hrule
+\vspace{3mm}
+
+È possibile ovviamente sincronizzare manualmente l'esecuzione in un programma CUDA, in modo tale da controllare l'ordine di esecuzione tra kernel, thread o tra operazioni tra CPU e GPU.  I principali metodi di sincronizzazione sono i seguenti:
+
+\begin{itemize}
+    \item \textbf{Sincronizzazione tra Host e Device:}
+    \begin{itemize}
+        \item \texttt{cudaDeviceSynchronize()}: Questa funzione viene chiamata dalla CPU per aspettare che tutte le operazioni precedenti lanciate sulla GPU siano completate. Viene utilizzata per assicurarsi che il kernel abbia terminato l'esecuzione prima di continuare con altre operazioni sul codice host.
+    \end{itemize}
+    
+    \item \textbf{Sincronizzazione tra Thread di un Kernel:}
+    \begin{itemize}
+        \item \texttt{\_\_syncthreads()}: Questa funzione viene chiamata all'interno di un kernel e sincronizza tutti i thread all'interno di un blocco. Ogni thread deve raggiungere il punto in cui è presente \texttt{\_\_syncthreads()} prima di poter proseguire, ed è utile quando c'è bisogno che tutti i thread completino un’operazione comune prima di procedere ulteriormente. Va notato che \texttt{\_\_syncthreads()} funziona solo all'interno di un singolo blocco di thread, non tra diversi blocchi.
+    \end{itemize}
+    
+    \item \textbf{Stream e Eventi per Sincronizzazione Personalizzata:}
+    \begin{itemize}
+        \item CUDA supporta l'uso di stream e eventi per una sincronizzazione più avanzata. Gli stream permettono di lanciare kernel in modo asincrono e indipendente tra loro, mentre gli eventi vengono utilizzati per sincronizzare l'esecuzione tra diversi stream o per misurare il tempo di esecuzione tra operazioni.
+    \end{itemize}
+\end{itemize}
 
 \section{Tipi di memoria}
 
@@ -298,12 +297,26 @@ L'importanza del SLAM risiede nella sua capacità di conferire autonomia a siste
     \item \textbf{Efficienza computazionale}: Ottimizzare l'utilizzo delle risorse, specialmente su piattaforme con capacità limitate.
 \end{enumerate}
 
-\newpage
+\subsection{Introduzione ai sistemi ORB-SLAM}
+
+I sistemi \textbf{ORB-SLAM} (Oriented FAST and Rotated BRIEF Simultaneous Localization and Mapping) rappresentano uno stato dell'arte nell'ambito della localizzazione e mappatura simultanea \textit{(SLAM)} in robotica e visione artificiale. Questi sistemi si distinguono per la loro capacità di costruire mappe tridimensionali dell'ambiente circostante in tempo reale, utilizzando unicamente input visivi originati da telecamere monoculari, stereo o RGB-D.
+
+Il processo completo può essere sintetizzato in questo modo:
+
+\begin{enumerate}
+    \item Acquisizione delle immagini
+    \item Rilevamento dei punti caratteristici ORB
+    \item Tracciamento dei punti caratteristici
+    \item Costruzione della mappa
+    \item Localizzazione
+    \item Ottimizzazione della mappa e rivelamento dei loop.
+\end{enumerate}
 
 \subsection{Caratteristiche principali di ORB-SLAM}
 
-\subsubsection{Rilevamento delle caratteristiche}
-        Utilizza ORB (Oriented FAST and Rotated BRIEF) come descrittori di caratteristiche visive. Questi sono efficienti sia in termini di tempo di calcolo che di robustezza rispetto a variazioni di illuminazione e rotazioni.
+\subsubsection{Rilevamento delle caratteristiche (features)}
+Per ogni immagine acquisita, l'algoritmo ORB estrae punti di riferimento unici chiamati \textbf{caratteristiche} (features) utilizzando un algoritmo chiamato \textbf{FAST} (Features from Accelerated Segment Test). 
+Questi punti caratteristici possono essere angoli o dettagli unici nell'immagine, come il bordo di una finestra o l'angolo di un edificio. Questi punti devono essere facilmente riconoscibili anche da diverse angolazioni o distanze.
 
 
 \begin{figure}[h]
@@ -312,33 +325,39 @@ L'importanza del SLAM risiede nella sua capacità di conferire autonomia a siste
     \caption{Ottenimento dei punti chiave in un frame \cite{SLAM2_Feature}}
 \end{figure}
 
+\subsubsection{Tracciamento dei punti caratteristici}
+
+Quando la telecamera si muove, l'algoritmo confronta i punti caratteristici delle nuove immagini con quelli delle immagini precedenti. Questo permette di capire come si è spostata la telecamera: se un punto si è spostato a destra nell'immagine, potrebbe significare che la telecamera si è mossa a sinistra, e viceversa.
+Questo è possibile grazie ai descrittori binari \textbf{BRIEF} (Binary Robust Independent Elementary Features) che tengono salvati le features principali.
 
 \subsubsection{Localizzazione e Mappatura}
-        ORB-SLAM integra la localizzazione del dispositivo e la mappatura dell'ambiente in un unico framework. Utilizza le caratteristiche ORB estratte dalle immagini per stimare la posizione e orientamento della fotocamera mentre costruisce una mappa 3D dell'ambiente.
+Durante il movimento della telecamera e l'acquisizione sequenziale di immagini, il sistema ORB-SLAM sfrutta i punti caratteristici estratti per generare e aggiornare incrementalmente una rappresentazione tridimensionale dell'ambiente circostante(\textbf{mappatura}).
+
+Simultaneamente al processo di mappatura, il sistema esegue una stima continua della posa della telecamera, comprendente posizione e orientamento, in relazione alla mappa tridimensionale in fase di costruzione. Questo processo di localizzazione consente al dispositivo di determinare con precisione le sue coordinate spaziali all'interno dell'ambiente in fase di ricostruzione (\textbf{localizzazione}).
 
 
+\subsubsection{Ottimizzazione della mappa e rivelamento dei loop.}
+Il sistema gestisce una mappa di punti chiave e riconosce i ritorni (\textbf{loop closures}) per correggere eventuali errori accumulati nella stima della posizione, migliorando così l'accuratezza della mappa e della localizzazione.
 
-\subsubsection{Gestione delle chiavi e dei loop closure}
-        Il sistema gestisce una mappa di punti chiave e riconosce i ritorni (\textbf{loop closures}) per correggere eventuali errori accumulati nella stima della posizione, migliorando così l'accuratezza della mappa e della localizzazione.
+\rule{\linewidth}{0.5mm}
 
-\begin{figure}[h]
+\subsubsection{Riassunto - Tracking, Mappatura e Rilevamento di Loop}
+ORB-SLAM divide il processo in tre thread principali: \textbf{tracking} (tracciamento della fotocamera), \textbf{mappatura} (costruzione e aggiornamento della mappa) e \textbf{rilevamento di loop} (riconoscimento di posizioni precedentemente visitate) con successiva chiusura del loop.
+
+\begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{img/SLAM_schema.jpg}
     \caption{Diagramma a blocchi generico e semplificato del processo SLAM basato sulle caratteristiche \cite{SLAM_algoritm2}}
-    
 \end{figure}
 
-\subsubsection{Tracking, Mappatura e Rilevamento di Loop}
-        ORB-SLAM divide il processo in tre thread principali: \textbf{tracking} (tracciamento della fotocamera), \textbf{mappatura} (costruzione e aggiornamento della mappa) e \textbf{rilevamento di loop} (riconoscimento di posizioni precedentemente visitate) con successiva chiusura del loop.
-
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{img/loop_closure.png}
     \caption{Rappresentazione algoritmo di loop closure \cite{loop_closure}}
     
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{img/map_viewer.png}
     \caption{"Cattura" dello schermo durante la generazione della mappa ambientale}
