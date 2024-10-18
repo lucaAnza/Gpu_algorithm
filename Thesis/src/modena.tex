@@ -460,6 +460,7 @@ In questa sezione, verranno illustrati dettagliatamente i passaggi necessari per
 Verranno esaminati i seguenti aspetti chiave del processo di ottimizzazione:
 
 \begin{enumerate}
+    \item Il ragionamento alla base dell'ottimizzazione
     \item La realizzazione di un programma intermedio per avvicinarci alla soluzione finale.
     \item La distribuzione delle sotto-funzioni nei diversi dispositivi (\textit{GPU} oppure \textit{CPU}).
     \item Lo schema specifico per la "\textbf{ricerca delle distanze minime}" (\ref{ricerca-candidati})
@@ -468,18 +469,43 @@ Verranno esaminati i seguenti aspetti chiave del processo di ottimizzazione:
 
 Questa esplorazione ci permetterà di valutare l'efficacia dell'approccio adottato e di trarre conclusioni sulle potenzialità dell'ottimizzazione in questo contesto specifico.
 
+\subsection{Percorso logico verso l'ottimizzazione}
+
+Il processo di sviluppo della soluzione finale si è articolato attraverso diverse fasi metodologiche:
+
+\begin{enumerate}
+    \item  Si è proceduto all'identificazione della funzione di \textbf{Stereo Matching} all'interno del codice sorgente di ORB-SLAM.
+    \item L'attenzione è stata focalizzata sui costrutti iterativi \textbf{for}, i quali, in un contesto di esecuzione \textit{single-thread}, possono risultare particolarmente onerosi dal punto di vista computazionale.
+    \item è stata effettuata un'analisi per determinare il \textbf{numero medio di iterazioni} di tali costrutti. I risultati di queste analisi sono stati riportati nello schema generale (si rimanda al capitolo [\ref{schema-generale-computeStereo}] ).
+    \item In conclusione, si è proceduto ad un esame approfondito delle implementazioni delle funzioni preesistenti, seguito dalla progettazione di versioni parallele mediante l'utilizzo di \textit{CUDA}, con l'obiettivo di ottenere una significativa riduzione dei tempi di elaborazione.
+\end{enumerate}
+
 \begin{figure}[H]
     \centering
     \fbox{\includegraphics[width=0.5\textwidth]{img/experiment2_schema.png}}
-    \caption{Distribuzione delle funzioni su device}
+    \caption{Progettazione della distribuzione delle funzioni su device}
 \end{figure}
 
 \subsection{Avvicinamento alla soluzione}
 
 Nel percorso verso la realizzazione del nostro obiettivo finale, si è ritenuto opportuno sviluppare un programma intermedio. Questo approccio ha permesso di affrontare gradualmente la complessità del problema, fornendo preziosi spunti e una base solida su cui costruire.
-È importante sottolineare che questo programma intermedio, pur condividendo alcune similitudini con il nostro obiettivo finale, presenta delle differenze significative:
 
-\begin{figure}[h]
+È importante sottolineare che questo programma intermedio, pur condividendo alcune similitudini con il nostro obiettivo finale, presenta delle \textbf{differenze significative} poichè non tiene conto di alcuni aspetti fondamentali:
+\begin{itemize}
+    \item L'incremento di strutture dati necessarie  
+    \item L'adattamento della struttura dei dati da \textit{CPU $\rightarrow$ GPU}
+    \item Dei numerosi filtri di controllo eseguiti, durante le iterazioni dei punti chiave.
+\end{itemize}
+
+Gli \textbf{elementi comuni} che si possono trovare invece sono:
+
+\begin{itemize}
+    \item L'utilizzo della stessa struttura dati \textit{Vcandidates[] } che rappresenta una matrice avente il numero di colonne non omogeneo.
+    \item L'esecuzione di operazioni sugli elementi della matrice (di complessità notevolmente inferiore al programma finale).
+    \item La ricerca di un punto minimo nella struttura dati principale.
+\end{itemize}
+
+\begin{figure}[H]
     \centering
     \fbox{\includegraphics[width=1\textwidth]{img/opt1_simulation.png}}
     \caption{Schemattizazione del programma di "avvicinamento"}
@@ -532,20 +558,41 @@ Dopo aver preparato l'infrastruttura necessaria, ci siamo concentrati sulla prog
 
 La struttura del kernel è stata progettata per massimizzare il parallelismo, permettendo l'elaborazione simultanea di molteplici punti di interesse e riducendo significativamente il tempo di esecuzione complessivo dell'algoritmo di ricerca delle distanze minime.
 
-\vspace{1cm}
+Questo è stato possibile grazie  all'implementazione di una singola funzione, garantendo così un'uniformità nell'utilizzo delle risorse computazionali in termini di thread, blocchi e griglie. Questo approccio ha consentito una gestione efficiente e coerente delle unità di elaborazione parallela.
+A seguito si procederà ad una analisi più dettagliata dell'implementazione.
 
-\begin{figure}[h]
+\subsubsection{Calcolo della distanza}
+
+Nell'immagine sottostante è possibile notare che usando lo stesso numero di blocchi e thread, andiamo ad eseguire operazioni su due differenti strutture dati diverse:
+
+\begin{itemize}
+    \item mDescriptor (matrice)
+    \item vRowIndices (matrice con colonne eterogenee)
+\end{itemize}
+
+È importante notare che il numero 370 si riferisce al numero di righe della struttura dati \textit{vRowIndices}. Questo dato potrebbe cambiare in futuro se si modifica la risoluzione delle fotocamere. 
+
+Inoltre si nota che per adattare la dimensione della matrice \textit{mDescriptor} si è deciso di utilizzare il \textit{partition\_factor}. Questa variabile permette di raggruppare più righe nello stesso blocco e quindi evitare di lanciare blocchi "a vuoto".
+
+\begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.6\textwidth]{img/GPU_opt1_findDistance.png}}
+    \fbox{\includegraphics[width=0.8\textwidth]{img/GPU_opt1_findDistance.png}}
     \caption{Configurazione della griglia (calcolo distanza) }
 \end{figure}
 
-\begin{figure}[h]
+\subsubsection{Calcolo della distanza minima}
+
+Una volta calcolate le distanze, vengono confrontate tra loro e inserite, in modo opportuno, in un array la cui dimensione è determinata dal \textit{partition\_factor}. 
+
+È importante notare che viene creato un vettore distinto per ciascun blocco istanziato. 
+
+\begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.6\textwidth]{img/GPU_opt1_findMinDistance.png}}
+    \fbox{\includegraphics[width=0.8\textwidth]{img/GPU_opt1_findMinDistance.png}}
     \caption{Configurazione della griglia (calcolo distanza minima) }
 \end{figure}
 
+\newpage
 \subsubsection{Riscrittura funzione sequenziale (Distanza di Hamming) }
 
 Abbiamo modificato la funzione che calcola la distanza di Hamming in modo che potesse essere chiamata direttamente dalla GPU. Questo è stato realizzato convertendo la funzione in una funzione di tipo \textbf{\_\_device\_\_}. Tale modifica permette alla funzione di essere eseguita direttamente sul dispositivo GPU, ottimizzando così le prestazioni e riducendo la necessità di trasferimenti di dati tra CPU e GPU.
@@ -575,7 +622,7 @@ __device__ int DescriptorDistance(const unsigned char *a, const unsigned char* b
 
 \subsubsection{Confronto precisione risultati}
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \fbox{\includegraphics[width=1\textwidth]{img/minium_distance_accuracy.png}}
     \caption{Risultato accuratezza dell'algoritmo}
@@ -583,7 +630,7 @@ __device__ int DescriptorDistance(const unsigned char *a, const unsigned char* b
 
 \subsection{Parallelizazione del "filtraggio delle distanze" }
 
-In questa parte dell'esperimento, abbiamo utilizzato i file configurazione del programma citati nella sezione precedente \ref{distanze-minime-gpu}. Questo approccio ci ha permesso di mantenere una coerenza metodologica e di costruire sulla base delle conoscenze già acquisite. Tuttavia, la differenza sostanziale in questa fase è stata l'introduzione di una nuova funzione di tipo \textbf{kernel()}, specifica per l'implementazione CUDA.
+In questa parte dell'esperimento, abbiamo utilizzato i file configurazione del programma citati nella sezione precedente [\ref{distanze-minime-gpu}]. Questo approccio ci ha permesso di mantenere una coerenza metodologica e di costruire sulla base delle conoscenze già acquisite. Tuttavia, la differenza sostanziale in questa fase è stata l'introduzione di una nuova funzione di tipo \textbf{kernel()}, specifica per l'implementazione CUDA.
 \subsubsection{Configurazione del programma}
 
 \begin{enumerate}
@@ -598,7 +645,7 @@ In questa parte dell'esperimento, abbiamo utilizzato i file configurazione del p
 A seguito è stata progettata la \textbf{configurazione della griglia} in modo tale da sfruttare
 a pieno il parallelismo e minimizzare l'utilizzo di registri della GPU.
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \fbox{\includegraphics[width=0.7\textwidth]{img/GPU_opt1_slidingWindow.png}}
     \caption{Configurazione della griglia(sliding window) }
@@ -641,9 +688,9 @@ __device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , i
 
 \vspace{1cm}
 
-È importante ricordare la definizione di norma 1 e il suo scopo: la norma 1, anche nota come distanza di Manhattan o distanza cityblock, è definita come la somma dei valori assoluti delle differenze delle coordinate. Nel nostro contesto, viene utilizzata per misurare la dissimilarità tra due vettori di caratteristiche, fornendo una metrica robusta per confrontare descrittori di immagini e identificare corrispondenze tra punti di interesse.
+È importante ricordare la definizione di norma 1 e il suo scopo: la norma 1, anche nota come distanza di Manhattan o distanza cityblock, è definita come "\textit{la somma dei valori assoluti delle differenze delle coordinate}". Nel nostro contesto, viene utilizzata per misurare la dissimilarità tra due vettori di caratteristiche, fornendo una metrica robusta per confrontare descrittori di immagini e identificare corrispondenze tra punti di interesse.
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \fbox{\includegraphics[width=0.4\textwidth]{img/norm1.png}}
     \caption{Definizione della Norma di Manhattan}
@@ -651,7 +698,7 @@ __device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , i
 
 \subsubsection{Confronto precisione risultati}
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \fbox{\includegraphics[width=1\textwidth]{img/sliding_window_accuracy.png}}
     \caption{Risultato accuratezza dell'algoritmo}
