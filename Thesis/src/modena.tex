@@ -447,7 +447,7 @@ In questa sezione, analizzeremo il processo di Sliding Window nel contesto del n
     \caption{Schematizzazione a alto livello (CPU) }
 \end{figure}
 
-\begin{figure}[H]
+\begin{figure}[H] 
     \centering
     \fbox{\includegraphics[width=1\textwidth]{img/sliding_window.png}}
     \caption{Schematizzazione a basso livello (CPU) }
@@ -580,11 +580,14 @@ Inoltre si nota che per adattare la dimensione della matrice \textit{mDescriptor
     \caption{Configurazione della griglia (calcolo distanza) }
 \end{figure}
 
-\subsubsection{Calcolo della distanza minima}
+\subsubsection{Calcolo della distanza minima} \label{calcolo-distanza-minima}
 
-Una volta calcolate le distanze, vengono confrontate tra loro e inserite, in modo opportuno, in un array la cui dimensione è determinata dal \textit{partition\_factor}. 
-
+Una volta calcolate le distanze, vengono confrontate tra loro e inserite, in modo opportuno, in un array la cui dimensione è determinata dal \textit{partition\_factor}.
 È importante notare che viene creato un vettore distinto per ciascun blocco istanziato. 
+
+Come passaggio finale tutti i 370 vettori composti da \textit{partition\_factor} elementi, verranno spostati in un vettore di dimensione pari a N ( N = numero di righe della matrice \textit{mDescriptor})
+
+
 
 \begin{figure}[H]
     \centering
@@ -592,12 +595,11 @@ Una volta calcolate le distanze, vengono confrontate tra loro e inserite, in mod
     \caption{Configurazione della griglia (calcolo distanza minima) }
 \end{figure}
 
-\newpage
 \subsubsection{Riscrittura funzione sequenziale (Distanza di Hamming) }
 
 Abbiamo modificato la funzione che calcola la distanza di Hamming in modo che potesse essere chiamata direttamente dalla GPU. Questo è stato realizzato convertendo la funzione in una funzione di tipo \textbf{\_\_device\_\_}. Tale modifica permette alla funzione di essere eseguita direttamente sul dispositivo GPU, ottimizzando così le prestazioni e riducendo la necessità di trasferimenti di dati tra CPU e GPU.
 
-\vspace{1cm}
+\vspace{2cm}
 
 CODE : Algoritmo per calcolare distanza di Hamming
 \begin{lstlisting}
@@ -645,16 +647,53 @@ In questa parte dell'esperimento, abbiamo utilizzato i file configurazione del p
 A seguito è stata progettata la \textbf{configurazione della griglia} in modo tale da sfruttare
 a pieno il parallelismo e minimizzare l'utilizzo di registri della GPU.
 
+In questa funzione parallela CUDA si è deciso di lanciare \textit{K blocchi} e \textit{J thread} (\textit{K} = N/256 , \textit{J} = 256).
+È opportuno ricordare che \textit{N} fa riferimento al numero di righe della struttura dati \textit{mDescriptor} in cui sono stati salvati le distanze minime (approfondimento nella sezione  [\ref{calcolo-distanza-minima}] )
+
 \begin{figure}[H]
     \centering
     \fbox{\includegraphics[width=0.7\textwidth]{img/GPU_opt1_slidingWindow.png}}
     \caption{Configurazione della griglia(sliding window) }
 \end{figure}
 
-\newpage
-\subsubsection{Riscrittura funzione sequenziale (Norma Manhattan)}
+\subsubsection{Scrittura metodi \textit{getter()} per l'immagine piramidale}
 
-Abbiamo riscritto la funzione che calcola la norma 1, nota anche come "distanza di Manhattan". Questa funzione, che nel programma CPU originale era stata implementata utilizzando la libreria OpenCV, è stata riscritta come una funzione di tipo \textbf{\_\_device\_\_}.
+Visionando la schematizzazione a basso livello (CPU) presente nel capitolo [\ref{filtraggio-finale}] si può notare che vengono estratte due sottomatrici \textit{IL} e \textit{IR}. 
+Queste sottomatrici vengono ottenute a seguito di questa riga di codice:
+
+\begin{lstlisting}
+cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1);
+\end{lstlisting}
+
+Il problema principale è che \textit{mvImagePyramid} è definita nel seguente modo:
+
+\begin{lstlisting}
+std::vector<cv::Mat> mvImagePyramid;
+\end{lstlisting}
+
+Come si può osservare, ci troviamo di fronte a un \textit{vector} di tipo \textit{cv::Mat}. Tuttavia, è importante notare che queste due strutture dati non sono compatibili con le funzioni CUDA, le quali supportano esclusivamente array standard.
+
+La soluzione a questo problema è stata quella di definire all'interno del file \textbf{ORBSLAM3/include/ORBextractor.h} un metodo \textbf{getter()} che permettesse di ottenere la struttura dati primitiva definita così : 
+
+\begin{lstlisting}
+uchar *d_images;     //liv (0[EMPTY],1,2,3,4,5,6,7) 
+uchar *d_inputImage; //immagine originale (liv 0)
+\end{lstlisting}
+
+La struttura primitiva si riferisce ad un \textbf{Octave} cioè una serie di immagini della stessa scena ma con risoluzioni diverse, ottenute riducendo progressivamente la dimensione dell'immagine originale. 
+Ogni octave contiene più versioni filtrate a varie scale, usate per rilevare caratteristiche invarianti alla scala, come nei metodi SIFT o ORB.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=1\textwidth]{img/pyramid.png}}
+    \caption{Rappresentazione visiva dell'octave}
+\end{figure}
+
+
+\subsubsection{Riscrittura funzione sequenziale (Norma Manhattan)}
+Abbiamo riscritto la funzione che calcola la norma 1, nota anche come "distanza di Manhattan". Poichè questa funzione, che nel programma CPU originale era stata implementata utilizzando la libreria OpenCV non poteva essere lanciata nella funzione parallela. 
+
+Per questo motivo è stata riscritta come una funzione di tipo \textbf{\_\_device\_\_}.
 
 \begin{lstlisting}
 __device__ float norm1(const uchar *V1 , const uchar* V2 , int size , int i1 , int j1 , int i2 , int j2 , int cols1 , int cols2 , int incR , int iL){
